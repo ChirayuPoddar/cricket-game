@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Cricket Game</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+</head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+
+        <script type="module">
+        // 1. Import Core Engine Architecture Modules
+        import { GameEngine } from './src/core/engine.js';
+        import { GameScene } from './src/core/scene.js';
+
+        // 2. Import All Environment/Scenery Modules
+        import EnvironmentCamera from './src/environment/camera.js';
+        import EnvironmentLights from './src/environment/lights.js';
+        import EnvironmentSky from './src/environment/sky.js';
+        import EnvironmentGround from './src/environment/ground.js';
+        import EnvironmentWickets from './src/environment/wickets.js';
+        import EnvironmentBat from './src/environment/bat.js';
+        import EnvironmentBall from './src/environment/ball.js';
+        import EnvironmentUI from './src/environment/ui.js';
+        import EnvironmentStadium from './src/environment/stadium.js'; // Added import
+
+        window.addEventListener("DOMContentLoaded", () => {
+            console.log("Unified Master Bootstrapper Active!");
+
+            const gameEngineModule = new GameEngine("renderCanvas");
+            const engine = gameEngineModule.initialize();
+
+            const gameSceneModule = new GameScene(engine);
+            const scene = gameSceneModule.create();
+
+            const cameraModule = new EnvironmentCamera(scene, gameEngineModule.canvas);
+            cameraModule.setup();
+
+            const lightsModule = new EnvironmentLights(scene);
+            const lightingAssets = lightsModule.setup();
+
+            const skyModule = new EnvironmentSky(scene);
+            skyModule.setup();
+
+            const groundModule = new EnvironmentGround(scene);
+            groundModule.setup();
+
+            // Initialize and mount the new Stadium Scenery scenery block!
+            const stadiumModule = new EnvironmentStadium(scene);
+            stadiumModule.setup();
+
+            const uiModule = new EnvironmentUI(scene);
+            uiModule.setup();
+
+            const wicketsModule = new EnvironmentWickets(scene, lightingAssets.shadowGenerator);
+            wicketsModule.setup();
+
+            const batModule = new EnvironmentBat(scene);
+            const batGroup = batModule.setup();
+
+            const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
+            ballModule.setup(batGroup, wicketsModule, uiModule);
+
+            gameEngineModule.startRenderLoop(scene);
+        });
+    </script>
+</body>
+</html>

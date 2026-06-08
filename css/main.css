@@ -1,0 +1,22 @@
+/* Reset browser defaults to prevent unwanted spacing */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Ensure the document body fills the entire screen viewport */
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000000;
+}
+
+/* Configure the 3D canvas rendering zone */
+#renderCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    outline: none;
+}
