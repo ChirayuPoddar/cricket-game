@@ -16,7 +16,7 @@ export default class EnvironmentStadium {
     createBoundaryRope() {
         const boundaryPoints = [];
         const totalSegments = 128; // More segments = smoother circle
-        const radius = 45; // Distance from center to boundary rope
+        const radius = 40; // Distance from center to boundary rope
 
         for (let i = 0; i <= totalSegments; i++) {
             const angle = (i / totalSegments) * Math.PI * 2;

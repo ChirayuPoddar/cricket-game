@@ -6,7 +6,7 @@ export default class EnvironmentCamera {
         this.camera = null;
 
         // Camera positioning configurations
-        this.defaultPosition = new BABYLON.Vector3(0, 1.4, 10);
+        this.defaultPosition = new BABYLON.Vector3(0, 1.4, 15);
         this.defaultTarget = new BABYLON.Vector3(0, 0.8, -10);
 
         this.targetBallMesh = null;

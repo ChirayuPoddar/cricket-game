@@ -1,14 +1,17 @@
+// src/environment/ball.js
+
 /**
  * Environment Ball Module
- * Responsibilities: Simulating flight gravity, pitch bouncing, bat deflections,
- * tracking broken wickets, and checking real-time boundary rope crossovers (4s and 6s).
+ * Responsibilities: Simulating flight gravity, pitch bouncing, hand-strike deflections,
+ * tracking broken wickets, and checking real-time boundary rope crossovers (4s and 6s)
+ * along with in-field run scoring modifications.
  */
 export default class EnvironmentBall {
     constructor(scene, shadowGenerator) {
         this.scene = scene;
         this.shadowGenerator = shadowGenerator;
         this.ballMesh = null;
-        this.targetBatGroup = null;
+        this.targetHandGroup = null;
         this.targetWicketsModule = null;
         this.uiModule = null;
         this.cameraModule = null;
@@ -22,16 +25,16 @@ export default class EnvironmentBall {
 
         this.swingForce = 0;
         this.isAnimating = true;
-        this.hasHitBatOrStumps = false;
+        this.hasHitHandOrStumps = false;
 
         // BOUNDARY TRACKING STATE
         this.hasHitGroundAfterStroke = false;
         this.boundaryRegistered = false;
-        this.BOUNDARY_RADIUS = 40.0; // Matches your stadium outer rope boundary
+        this.BOUNDARY_RADIUS = 40.0; // Matches stadium outer rope boundary perimeter
     }
 
-    setup(batGroup, wicketsModule, uiModule, cameraModule) {
-        this.targetBatGroup = batGroup;
+    setup(handGroup, wicketsModule, uiModule, cameraModule) {
+        this.targetHandGroup = handGroup;
         this.targetWicketsModule = wicketsModule;
         this.uiModule = uiModule;
         this.cameraModule = cameraModule;
@@ -86,37 +89,36 @@ export default class EnvironmentBall {
                 this.velocity.y = -this.velocity.y * 0.65; // Bounce energy loss
                 this.swingForce *= 0.1;
 
-                // Track if the ball has hit the turf after a bat deflection
-                if (this.hasHitBatOrStumps) {
+                // Track if the ball has hit the turf after a player strike deflection
+                if (this.hasHitHandOrStumps) {
                     this.hasHitGroundAfterStroke = true;
                 }
             }
 
-            // A. Playable Bat Collision Intersection
-            if (this.targetBatGroup && !this.hasHitBatOrStumps) {
-                const batPos = this.targetBatGroup.position;
-                if (Math.abs(this.position.x - batPos.x) < 0.22 &&
-                    Math.abs(this.position.y - batPos.y) < 0.5 &&
-                    Math.abs(this.position.z - batPos.z) < 0.25) {
+            // A. Hand Collision Proxy Detection window
+            if (this.targetHandGroup && !this.hasHitHandOrStumps) {
+                const handPos = this.targetHandGroup.position;
 
-                    this.hasHitBatOrStumps = true;
+                // Checks if ball enters the 3D bounding frame of your open palm striker proxy mesh
+                if (Math.abs(this.position.x - handPos.x) < 0.35 &&
+                    Math.abs(this.position.y - handPos.y) < 0.35 &&
+                    Math.abs(this.position.z - handPos.z) < 0.30) {
 
-                    // Calculate horizontal accuracy (sweet spot check)
-                    const strikeError = Math.abs(this.position.x - batPos.x);
+                    this.hasHitHandOrStumps = true;
 
-                    // Standard forward/backward velocity deflection
-                    this.velocity.z = -Math.abs(this.velocity.z) * 1.6;
-                    this.velocity.x = (this.position.x - batPos.x) * 24;
+                    // Calculate deflection angles based on accuracy distance from hand target center
+                    const strikeError = Math.abs(this.position.x - handPos.x);
 
-                    // IMPROVEMENT 1: Give clean, sweet-spot strikes a true towering launch arc!
-                    if (strikeError < 0.06) {
-                        // High launch trajectory for a dramatic six
-                        this.velocity.y = 14.5 + (Math.random() * 3.0);
-                        // Add extra forward carry to make sure it sails over the rope easily
-                        this.velocity.z *= 1.3;
+                    // RE-TUNED EXCELERATION LAUNCH VARIABLES (POWER BOOST)
+                    this.velocity.z = -Math.abs(this.velocity.z) * 2.5;
+                    this.velocity.x = (this.position.x - handPos.x) * 35;
+
+                    // Sweet spot strikes shoot into the air with enough power for boundaries
+                    if (strikeError < 0.12) {
+                        this.velocity.y = 18.0 + (Math.random() * 4.0);
+                        this.velocity.z *= 1.5;
                     } else {
-                        // Standard ground/lofted drive for standard hits
-                        this.velocity.y = 4.0 + (Math.random() * 3.0);
+                        this.velocity.y = 4.0 + (Math.random() * 2.0);
                     }
 
                     if (this.cameraModule) {
@@ -126,7 +128,7 @@ export default class EnvironmentBall {
             }
 
             // B. Wicket Collision Checks
-            if (this.targetWicketsModule && !this.targetWicketsModule.isSmashed && !this.hasHitBatOrStumps) {
+            if (this.targetWicketsModule && !this.targetWicketsModule.isSmashed && !this.hasHitHandOrStumps) {
                 const wicketZ = this.targetWicketsModule.Z_POSITION;
                 const wicketHeight = this.targetWicketsModule.STUMP_HEIGHT;
 
@@ -134,13 +136,12 @@ export default class EnvironmentBall {
                     this.position.y < wicketHeight &&
                     Math.abs(this.position.x) < 0.12) {
 
-                    this.hasHitBatOrStumps = true;
+                    this.hasHitHandOrStumps = true;
                     this.targetWicketsModule.triggerBowled();
-                    this.velocity.set(0, 1.5, 3.0); // Bails/ball deflection spray
+                    this.velocity.set(0, 1.5, 3.0);
 
                     if (this.uiModule) this.uiModule.registerWicket();
 
-                    // IMPROVEMENT 2: Snappy 2-second timeout reset right after getting bowled!
                     setTimeout(() => {
                         this.resetDelivery();
                     }, 2000);
@@ -149,7 +150,7 @@ export default class EnvironmentBall {
             }
 
             // C. LIVE BOUNDARY ROPE DETECTION
-            if (this.hasHitBatOrStumps && !this.boundaryRegistered && !this.targetWicketsModule.isSmashed) {
+            if (this.hasHitHandOrStumps && !this.boundaryRegistered && !this.targetWicketsModule.isSmashed) {
                 const distanceFromCenter = Math.sqrt(this.position.x * this.position.x + this.position.z * this.position.z);
 
                 if (distanceFromCenter >= this.BOUNDARY_RADIUS) {
@@ -170,15 +171,34 @@ export default class EnvironmentBall {
 
             this.ballMesh.position.copyFrom(this.position);
 
-            // Default safety reset if the ball gets missed completely by the batsman
-            if (!this.hasHitBatOrStumps && (this.position.z > 12 || this.position.z < -45)) {
-                this.resetDelivery();
+            // D. IN-FIELD RUN SCORING & DISMISSAL RESETS
+            if (this.hasHitHandOrStumps) {
+                // If the ball slows down significantly or goes deep into the pitch gaps without touching the boundary ropes
+                if (!this.boundaryRegistered && (this.position.z < -40 || Math.abs(this.position.x) > 25 || this.velocity.length() < 1.5)) {
+                    this.boundaryRegistered = true;
+
+                    // Assign runs dynamically based on the travel distance along the outfield
+                    const travelDistance = Math.abs(this.position.z);
+                    let runsScored = 1;
+                    if (travelDistance > 25) runsScored = 3;
+                    else if (travelDistance > 15) runsScored = 2;
+
+                    if (this.uiModule) {
+                        this.uiModule.addRuns(runsScored);
+                    }
+
+                    setTimeout(() => { this.resetDelivery(); }, 1500);
+                }
+            } else {
+                // Default safety reset if the ball gets missed completely by the player
+                if (this.position.z > 12 || this.position.z < -45) {
+                    this.resetDelivery();
+                }
             }
         });
     }
 
     resetDelivery() {
-        // If it was a clean dot ball (missed completely past wickets), safely increment the display
         if (!this.boundaryRegistered && !this.targetWicketsModule.isSmashed) {
             if (this.uiModule) {
                 this.uiModule.incrementBall();
@@ -186,12 +206,10 @@ export default class EnvironmentBall {
             }
         }
 
-        // Reset state variables
-        this.hasHitBatOrStumps = false;
+        this.hasHitHandOrStumps = false;
         this.hasHitGroundAfterStroke = false;
         this.boundaryRegistered = false;
 
-        // Tuned bowling physics variation ranges
         const randomPace = 22 + Math.random() * 6;
         const randomHeight = 1.8 + Math.random() * 0.2;
         const randomLineOffset = (Math.random() - 0.5) * 0.12;

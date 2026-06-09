@@ -9,6 +9,23 @@
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://cdn.babylonjs.com/cannon.js"></script>
 </head>
+<video id="webcamOverlay" autoplay playsinline></video>
+
+<style>
+  #webcamOverlay {
+    position: fixed;
+    bottom: 20px;       /* Puts it 20px up from the bottom edge */
+    right: 20px;        /* Puts it 20px in from the right edge */
+    width: 240px;       /* Width of your corner window */
+    height: 180px;      /* Height of your corner window */
+    object-fit: cover;  /* Prevents the camera feed from stretching squished */
+    border-radius: 12px;/* Gives it nice, modern rounded corners */
+    border: 3px solid #00ff00; /* Neon green matching your tracking theme */
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5); /* Drop shadow so it stands out */
+    z-index: 9999;      /* Forces it to stay on top of the BabylonJS canvas */
+    transform: scaleX(-1); /* Mirrors the feed so left-is-left and right-is-right */
+  }
+</style>
 <body>
     <canvas id="renderCanvas"></canvas>
 
@@ -23,8 +40,8 @@
         import EnvironmentSky from './src/environment/sky.js';
         import EnvironmentGround from './src/environment/ground.js';
         import EnvironmentWickets from './src/environment/wickets.js';
-        import EnvironmentBat from './src/environment/bat.js';
-        import EnvironmentBall from './src/environment/ball.js';
+        import EnvironmentHand from './src/environment/hand.js';
+    import EnvironmentBall from './src/environment/ball.js';
         import EnvironmentStadium from './src/environment/stadium.js'; 
         
         // Upgraded Scoreboard UI Import
@@ -62,14 +79,13 @@
             const wicketsModule = new EnvironmentWickets(scene, lightingAssets.shadowGenerator);
             wicketsModule.setup();
 
-const batModule = new EnvironmentBat(scene);
-const batGroup = batModule.setup();
+            const handModule = new EnvironmentHand(scene);
+            const handGroup = handModule.setup();
 
-// FIXED: Pass cameraModule into the 4th parameter slots
-const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
-ballModule.setup(batGroup, wicketsModule, uiModule, cameraModule); 
+            const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
+            ballModule.setup(handGroup, wicketsModule, uiModule, cameraModule);
 
-gameEngineModule.startRenderLoop(scene);
+            gameEngineModule.startRenderLoop(scene);
         });
     </script>
 </body>
