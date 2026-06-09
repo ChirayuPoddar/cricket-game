@@ -7,11 +7,12 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <script src="https://cdn.babylonjs.com/cannon.js"></script>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
 
-        <script type="module">
+    <script type="module">
         // 1. Import Core Engine Architecture Modules
         import { GameEngine } from './src/core/engine.js';
         import { GameScene } from './src/core/scene.js';
@@ -24,8 +25,10 @@
         import EnvironmentWickets from './src/environment/wickets.js';
         import EnvironmentBat from './src/environment/bat.js';
         import EnvironmentBall from './src/environment/ball.js';
-        import EnvironmentUI from './src/environment/ui.js';
-        import EnvironmentStadium from './src/environment/stadium.js'; // Added import
+        import EnvironmentStadium from './src/environment/stadium.js'; 
+        
+        // Upgraded Scoreboard UI Import
+        import GameUI from './src/ui/scoreboard.js'; 
 
         window.addEventListener("DOMContentLoaded", () => {
             console.log("Unified Master Bootstrapper Active!");
@@ -48,23 +51,25 @@
             const groundModule = new EnvironmentGround(scene);
             groundModule.setup();
 
-            // Initialize and mount the new Stadium Scenery scenery block!
+            // Initialize and mount the Stadium Scenery
             const stadiumModule = new EnvironmentStadium(scene);
             stadiumModule.setup();
 
-            const uiModule = new EnvironmentUI(scene);
+            // Initialize and mount the Upgraded Scoreboard Dashboard
+            const uiModule = new GameUI();
             uiModule.setup();
 
             const wicketsModule = new EnvironmentWickets(scene, lightingAssets.shadowGenerator);
             wicketsModule.setup();
 
-            const batModule = new EnvironmentBat(scene);
-            const batGroup = batModule.setup();
+const batModule = new EnvironmentBat(scene);
+const batGroup = batModule.setup();
 
-            const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
-            ballModule.setup(batGroup, wicketsModule, uiModule);
+// FIXED: Pass cameraModule into the 4th parameter slots
+const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
+ballModule.setup(batGroup, wicketsModule, uiModule, cameraModule); 
 
-            gameEngineModule.startRenderLoop(scene);
+gameEngineModule.startRenderLoop(scene);
         });
     </script>
 </body>

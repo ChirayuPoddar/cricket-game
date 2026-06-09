@@ -1,30 +1,58 @@
 /**
  * Environment Ground Module
- * Responsibilities: Creating the massive green outfield turf and the central rectangular clay pitch.
+ * Responsibilities: Creating the playing field plane and applying a sharp,
+ * light-and-dark green checkerboard pattern across the turf.
  */
 export default class EnvironmentGround {
     constructor(scene) {
         this.scene = scene;
-        this.outfieldMesh = null;
+        this.groundMesh = null;
         this.pitchMesh = null;
     }
 
     setup() {
-        this.createOutfield();
+        // Create a massive field ground plane
+        this.groundMesh = BABYLON.MeshBuilder.CreateGround("playingField", {
+            width: 120,
+            height: 120
+        }, this.scene);
+
+        this.applyCheckerboardTurf();
         this.createPitch();
     }
 
-    createOutfield() {
-        this.outfieldMesh = BABYLON.MeshBuilder.CreateGround("outfieldTurf", { width: 90, height: 1500 }, this.scene);
+    applyCheckerboardTurf() {
+        const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", this.scene);
 
-        const outfieldMaterial = new BABYLON.StandardMaterial("outfieldMat", this.scene);
-        outfieldMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.65, 0.3); // Lush grass green
-        outfieldMaterial.specularColor = BABYLON.Color3.Black(); // No plastic shine on grass
+        // Create a 512x512 dynamic texture pattern for the checks
+        const dynamicTexture = new BABYLON.DynamicTexture("turfTexture", 512, this.scene, false);
+        const ctx = dynamicTexture.getContext();
 
-        this.outfieldMesh.material = outfieldMaterial;
-        this.outfieldMesh.receiveShadows = true;
+        const gridCount = 20; // Number of checkered rows/columns
+        const cellSize = 512 / gridCount;
+
+        // Draw an alternating light-green and dark-green grid pattern onto the texture canvas
+        for (let x = 0; x < gridCount; x++) {
+            for (let y = 0; y < gridCount; y++) {
+                if ((x + y) % 2 === 0) {
+                    ctx.fillStyle = "#489438"; // Vibrant Light Green
+                } else {
+                    ctx.fillStyle = "#2e6b24"; // Rich Dark Green
+                }
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+        }
+
+        dynamicTexture.update(); // Push drawing details directly to GPU
+
+        groundMaterial.diffuseTexture = dynamicTexture;
+        groundMaterial.specularColor = new BABYLON.Color3(0.01, 0.01, 0.01); // Matte grass finish
+
+        this.groundMesh.material = groundMaterial;
+
+        // Optional: Ensure the pitch stays flat under shadows
+        this.groundMesh.receiveShadows = true;
     }
-
     createPitch() {
         this.pitchMesh = BABYLON.MeshBuilder.CreateGround("clayPitch", { width: 3, height: 25 }, this.scene);
         this.pitchMesh.position.y = 0.001; // Elevate slightly above grass to prevent texture flickering

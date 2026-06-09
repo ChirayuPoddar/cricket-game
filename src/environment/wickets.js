@@ -1,8 +1,4 @@
-/**
- * Environment Wickets Module
- * Responsibilities: Generating realistic stumps and bails, tracking ball collisions,
- * and animating the bails flying off when bowled.
- */
+// src/environment/wickets.js
 export default class EnvironmentWickets {
     constructor(scene, shadowGenerator) {
         this.scene = scene;
@@ -12,7 +8,7 @@ export default class EnvironmentWickets {
 
         this.STUMP_DIAMETER = 0.04;
         this.STUMP_HEIGHT = 0.71;
-        this.Z_POSITION = 10;
+        this.Z_POSITION = 8.2; // MOVED: Now sits right behind the batsman's guard line
         this.STUMP_SPACING = 0.06;
 
         this.leftBail = null;
@@ -96,10 +92,11 @@ export default class EnvironmentWickets {
         if (this.isSmashed) return;
         this.isSmashed = true;
 
-        this.bailsPhysics.left.vel = new BABYLON.Vector3(-1.5, 3.5, 4);
+        // Bails fly backwards behind the stumps (+Z direction)
+        this.bailsPhysics.left.vel = new BABYLON.Vector3(-1.0, 3.0, 4);
         this.bailsPhysics.left.rotVel = 5;
 
-        this.bailsPhysics.right.vel = new BABYLON.Vector3(1.5, 4, 3.5);
+        this.bailsPhysics.right.vel = new BABYLON.Vector3(1.0, 3.5, 4);
         this.bailsPhysics.right.rotVel = -6;
     }
 
