@@ -11,6 +11,7 @@ html, body {
     height: 100%;
     overflow: hidden;
     background-color: #000000;
+    font-family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
 }
 
 /* Configure the 3D canvas rendering zone */
@@ -19,4 +20,191 @@ html, body {
     height: 100%;
     display: block;
     outline: none;
+    touch-action: none;
+}
+
+/* Webcam overlay in corner */
+#webcamOverlay {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 240px;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 3px solid #00ff00;
+    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    transform: scaleX(-1);
+}
+
+/* Button styling for game controls */
+button {
+    transition: all 0.2s ease-in-out;
+    font-weight: bold;
+}
+
+button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5) !important;
+    background-color: rgba(0, 30, 60, 0.95) !important;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* Day/Night toggle button */
+#dayNightToggle {
+    background: linear-gradient(135deg, #051641, #0a2a5a);
+    color: #ffffff;
+    border: 2px solid #00ff00;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    position: absolute;
+    top: 20px;
+    right: 280px;
+    z-index: 1000;
+}
+
+/* Pause button */
+#pauseBtn {
+    background: linear-gradient(135deg, #051641, #0a2a5a);
+    color: #ffffff;
+    border: 2px solid #00ff00;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    position: absolute;
+    top: 20px;
+    right: 180px;
+    z-index: 1000;
+}
+
+/* Reset button */
+#resetBtn {
+    background: linear-gradient(135deg, #051641, #0a2a5a);
+    color: #ffffff;
+    border: 2px solid #00ff00;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 14px;
+    position: absolute;
+    top: 20px;
+    right: 100px;
+    z-index: 1000;
+}
+
+/* Connection status indicator */
+#connectionStatus {
+    position: absolute;
+    top: 85px;
+    left: 20px;
+    padding: 8px 12px;
+    background-color: rgba(10, 20, 40, 0.95);
+    color: #00FF00;
+    font-family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    font-size: 12px;
+    border-radius: 5px;
+    border-left: 3px solid #00FF00;
+    z-index: 999;
+    pointer-events: none;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Scoreboard and UI containers */
+.scoreboard {
+    position: absolute;
+    padding: 15px 25px;
+    background: rgba(10, 20, 40, 0.95);
+    color: #ffffff;
+    font-family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Scrollbar styling for modern browsers */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 0, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 0, 0.5);
+}
+
+/* Mobile responsive design */
+@media (max-width: 768px) {
+    #webcamOverlay {
+        width: 180px;
+        height: 135px;
+        bottom: 15px;
+        right: 15px;
+    }
+
+    button {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    #dayNightToggle {
+        right: 220px;
+    }
+
+    #pauseBtn {
+        right: 140px;
+    }
+
+    #resetBtn {
+        right: 80px;
+    }
+}
+
+@media (max-width: 480px) {
+    #webcamOverlay {
+        width: 150px;
+        height: 112px;
+        bottom: 10px;
+        right: 10px;
+    }
+
+    button {
+        font-size: 11px;
+        padding: 5px 8px;
+    }
+
+    #dayNightToggle {
+        right: 190px;
+    }
+
+    #pauseBtn {
+        right: 120px;
+    }
+
+    #resetBtn {
+        right: 70px;
+    }
 }

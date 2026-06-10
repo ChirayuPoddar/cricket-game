@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Cricket Game</title>
     <link rel="stylesheet" href="css/main.css">
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -9,27 +10,17 @@
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="https://cdn.babylonjs.com/cannon.js"></script>
 </head>
-<video id="webcamOverlay" autoplay playsinline></video>
-
-<style>
-  #webcamOverlay {
-    position: fixed;
-    bottom: 20px;       /* Puts it 20px up from the bottom edge */
-    right: 20px;        /* Puts it 20px in from the right edge */
-    width: 240px;       /* Width of your corner window */
-    height: 180px;      /* Height of your corner window */
-    object-fit: cover;  /* Prevents the camera feed from stretching squished */
-    border-radius: 12px;/* Gives it nice, modern rounded corners */
-    border: 3px solid #00ff00; /* Neon green matching your tracking theme */
-    box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5); /* Drop shadow so it stands out */
-    z-index: 9999;      /* Forces it to stay on top of the BabylonJS canvas */
-    transform: scaleX(-1); /* Mirrors the feed so left-is-left and right-is-right */
-  }
-</style>
 <body>
+    <video id="webcamOverlay" autoplay playsinline></video>
     <canvas id="renderCanvas"></canvas>
 
     <script type="module">
+        // DAY 1 QUICK WINS: New Architecture Modules
+        import ConfigManager from './src/core/ConfigManager.js';
+        import EventBus from './src/core/EventBus.js';
+        import PerformanceMonitor from './src/ui/PerformanceMonitor.js';
+        import ShotClassifier from './src/gameplay/ShotClassifier.js';
+
         // 1. Import Core Engine Architecture Modules
         import { GameEngine } from './src/core/engine.js';
         import { GameScene } from './src/core/scene.js';
@@ -41,20 +32,47 @@
         import EnvironmentGround from './src/environment/ground.js';
         import EnvironmentWickets from './src/environment/wickets.js';
         import EnvironmentHand from './src/environment/hand.js';
-    import EnvironmentBall from './src/environment/ball.js';
+        import EnvironmentBall from './src/environment/ball.js';
         import EnvironmentStadium from './src/environment/stadium.js'; 
         
         // Upgraded Scoreboard UI Import
         import GameUI from './src/ui/scoreboard.js'; 
 
-        window.addEventListener("DOMContentLoaded", () => {
-            console.log("Unified Master Bootstrapper Active!");
+        window.isDayMode = true;
+
+        window.addEventListener("DOMContentLoaded", async() => {
+            console.log("🚀 Unified Master Bootstrapper Active with Day 1 Architecture!");
+            
+            // STEP 1: Load configuration FIRST (before anything else)
+            await ConfigManager.load();
+            console.log('✓ ConfigManager loaded - physics constants ready');
+            
+            // STEP 2: Initialize performance monitoring
+            const perfMonitor = new PerformanceMonitor();
+            perfMonitor.initialize();
+            perfMonitor.start();
+            window.perfMonitor = perfMonitor; // Make globally accessible for debugging
+            console.log('✓ PerformanceMonitor initialized (Press Ctrl+P to toggle)');
+            
+            // STEP 3: Make EventBus globally accessible for debugging
+            window.EventBus = EventBus;
+            window.ConfigManager = ConfigManager;
+            console.log('✓ EventBus ready - event-driven architecture active');
+            
+            // STEP 4: Initialize shot classifier
+            const shotClassifier = new ShotClassifier(ConfigManager.getAll());
+            window.shotClassifier = shotClassifier;
+            console.log('✓ ShotClassifier initialized - 10+ shot types supported');
 
             const gameEngineModule = new GameEngine("renderCanvas");
             const engine = gameEngineModule.initialize();
 
             const gameSceneModule = new GameScene(engine);
             const scene = gameSceneModule.create();
+
+            // Hardware glow effect for night floodlight radiancebloom
+            const gl = new BABYLON.GlowLayer("glow", scene);
+            gl.intensity = 0.6;
 
             const cameraModule = new EnvironmentCamera(scene, gameEngineModule.canvas);
             cameraModule.setup();
@@ -85,7 +103,86 @@
             const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
             ballModule.setup(handGroup, wicketsModule, uiModule, cameraModule);
 
-            gameEngineModule.startRenderLoop(scene);
+            gameEngineModule.startRenderLoop(scene, perfMonitor);
+
+            // Add a button to the UI that flips this global flag
+            const toggleBtn = document.createElement("button");
+            toggleBtn.innerText = "🌙 Day/Night";
+            toggleBtn.id = "dayNightToggle";
+            toggleBtn.style.position = "absolute";
+            toggleBtn.style.top = "20px";
+            toggleBtn.style.right = "280px";
+            toggleBtn.style.padding = "8px 12px";
+            toggleBtn.style.backgroundColor = "#051641";
+            toggleBtn.style.color = "#ffffff";
+            toggleBtn.style.border = "2px solid #00ff00";
+            toggleBtn.style.borderRadius = "5px";
+            toggleBtn.style.cursor = "pointer";
+            toggleBtn.style.fontSize = "14px";
+            toggleBtn.style.fontWeight = "bold";
+            toggleBtn.style.zIndex = "1000";
+            toggleBtn.onclick = () => {
+                window.isDayMode = !window.isDayMode;
+                lightsModule.applyTheme(window.isDayMode);
+                skyModule.applyTheme(window.isDayMode);
+                toggleBtn.innerText = window.isDayMode ? "☀️ Day/Night" : "🌙 Day/Night";
+            };
+            document.body.appendChild(toggleBtn);
+
+            // Pause button
+            const pauseBtn = document.createElement("button");
+            pauseBtn.id = "pauseBtn";
+            pauseBtn.innerText = "⏸ Pause";
+            pauseBtn.style.position = "absolute";
+            pauseBtn.style.top = "20px";
+            pauseBtn.style.right = "180px";
+            pauseBtn.style.padding = "8px 12px";
+            pauseBtn.style.backgroundColor = "#051641";
+            pauseBtn.style.color = "#ffffff";
+            pauseBtn.style.border = "2px solid #00ff00";
+            pauseBtn.style.borderRadius = "5px";
+            pauseBtn.style.cursor = "pointer";
+            pauseBtn.style.fontSize = "14px";
+            pauseBtn.style.fontWeight = "bold";
+            pauseBtn.style.zIndex = "1000";
+            pauseBtn.onclick = () => {
+                window.gamePaused = !window.gamePaused;
+                pauseBtn.innerText = window.gamePaused ? "▶ Resume" : "⏸ Pause";
+                if (window.gamePaused && uiModule) {
+                    uiModule.showAnnouncement("GAME PAUSED", "#FFFF00");
+                } else if (uiModule) {
+                    uiModule.showAnnouncement("GAME RESUMED", "#00FF00");
+                }
+            };
+            document.body.appendChild(pauseBtn);
+
+            // Reset button
+            const resetBtn = document.createElement("button");
+            resetBtn.id = "resetBtn";
+            resetBtn.innerText = "🔄 Reset";
+            resetBtn.style.position = "absolute";
+            resetBtn.style.top = "20px";
+            resetBtn.style.right = "100px";
+            resetBtn.style.padding = "8px 12px";
+            resetBtn.style.backgroundColor = "#051641";
+            resetBtn.style.color = "#ffffff";
+            resetBtn.style.border = "2px solid #00ff00";
+            resetBtn.style.borderRadius = "5px";
+            resetBtn.style.cursor = "pointer";
+            resetBtn.style.fontSize = "14px";
+            resetBtn.style.fontWeight = "bold";
+            resetBtn.style.zIndex = "1000";
+            resetBtn.onclick = () => {
+                window.gamePaused = false;
+                pauseBtn.innerText = "⏸ Pause";
+                if (uiModule) {
+                    uiModule.resetGame();
+                }
+                ballModule.resetDelivery();
+            };
+            document.body.appendChild(resetBtn);
+
+            window.gamePaused = false;
         });
     </script>
 </body>

@@ -1,0 +1,74 @@
+{
+  "physics": {
+    "gravity": -9.8,
+    "ballDiameter": 0.072,
+    "ballMass": 0.156,
+    "batLength": 0.96,
+    "wicketWidth": 0.2286
+  },
+  "collision": {
+    "hand": {
+      "distanceX": 0.35,
+      "distanceY": 0.35,
+      "distanceZ": 0.30
+    },
+    "wicket": {
+      "distanceZ": 0.15,
+      "distanceX": 0.12
+    },
+    "boundary": {
+      "radius": 40.0
+    }
+  },
+  "physics_behavior": {
+    "bounceCoefficient": 0.65,
+    "swingForceDecay": 0.1,
+    "strikeForceMultiplier": 2.5,
+    "lateralForceScale": 35,
+    "groundFriction": 0.02,
+    "airResistance": 0.0047
+  },
+  "ball_movement": {
+    "perfectStrikeHeightMin": 18.0,
+    "perfectStrikeHeightMax": 22.0,
+    "edgeStrikeHeightMin": 4.0,
+    "edgeStrikeHeightMax": 6.0,
+    "velocityZMultiplier": 1.5,
+    "minVelocityForRun": 1.5
+  },
+  "difficulty_presets": {
+    "easy": {
+      "gravityScale": 0.8,
+      "speedScale": 0.8,
+      "accuracyScale": 1.5,
+      "bowlingVariationFrequency": 0.3,
+      "fieldingCatchProbability": 0.3
+    },
+    "normal": {
+      "gravityScale": 1.0,
+      "speedScale": 1.0,
+      "accuracyScale": 1.0,
+      "bowlingVariationFrequency": 0.6,
+      "fieldingCatchProbability": 0.6
+    },
+    "hard": {
+      "gravityScale": 1.2,
+      "speedScale": 1.3,
+      "accuracyScale": 0.8,
+      "bowlingVariationFrequency": 0.85,
+      "fieldingCatchProbability": 0.8
+    }
+  },
+  "shot_physics": {
+    "sweetSpotPosition": 0.65,
+    "sweetSpotRadius": 0.05,
+    "edgeThreshold": 0.12,
+    "perfectTimingPowerMultiplier": 1.5,
+    "perfectTimingAccuracyMultiplier": 1.3
+  },
+  "gameplay_timings": {
+    "wicketResetDelayMs": 2000,
+    "boundaryReplayDelayMs": 1200,
+    "deliveryResetCheckMs": 500
+  }
+}

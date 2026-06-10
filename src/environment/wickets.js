@@ -5,6 +5,7 @@ export default class EnvironmentWickets {
         this.shadowGenerator = shadowGenerator;
         this.stumpMaterial = null;
         this.bailMaterial = null;
+        
 
         this.STUMP_DIAMETER = 0.04;
         this.STUMP_HEIGHT = 0.71;

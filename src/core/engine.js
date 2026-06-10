@@ -11,7 +11,7 @@ export class GameEngine {
     // Function to initialize the hardware-accelerated WebGL instance
     initialize() {
         if (!this.canvas) {
-            console.error(`Canvas element with ID '${canvasId}' not found.`);
+            console.error(`Canvas element not found.`);
             return null;
         }
 
@@ -32,10 +32,14 @@ export class GameEngine {
     }
 
     // Function to start drawing frames onto the screen
-    startRenderLoop(scene) {
+    startRenderLoop(scene, perfMonitor = null) {
         this.engine.runRenderLoop(() => {
             if (scene) {
                 scene.render();
+            }
+            // Update performance monitor every frame if available
+            if (perfMonitor) {
+                perfMonitor.update({ fps: this.engine.getFps(), isRunning: true });
             }
         });
     }
