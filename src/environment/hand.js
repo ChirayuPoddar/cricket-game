@@ -21,12 +21,12 @@ export default class EnvironmentHand {
         this.swingSpeed   = 0;       // smoothed 0-1 swing power (magnitude)
         this.swingVX      = 0;       // signed world-unit/sec X velocity at bat
         this.swingVY      = 0;       // signed world-unit/sec Y velocity at bat (neg = down = forward)
-        this.swingSpeedDecay = 0.94; // how fast speed magnitude fades (increased to hold peak swing speed longer)
+        this.swingSpeedDecay = 0.88; // how fast speed magnitude fades (calibrated to a challenging sweet spot)
 
         // SWING SPEED THRESHOLDS (world units/sec)
         // Calibrate from console: gentle push ≈ 0.8, hard swing ≈ 4.0+
         this.SWING_SLOW_MAX = 0.6;   // below this → 1/2/3 runs territory
-        this.SWING_FAST_MIN = 2.0;   // above this → boundary territory (reduced further to make boundaries easy)
+        this.SWING_FAST_MIN = 2.8;   // above this → boundary territory (calibrated to a challenging sweet spot)
 
         // Snappy, highly responsive tracking factor
         this.lerpFactor = 0.45;

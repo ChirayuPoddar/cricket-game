@@ -30,6 +30,14 @@ export default class EnvironmentBall {
         // Physics state preservation for pause
         this.lastValidPosition = null;
         this.lastValidVelocity = null;
+
+        // SWING TIMING & AUTO-BOWL STATE
+        this.isBallReadyToBowl = true;
+        this.peakSwingSpeed = 0;
+        this.peakSwingTime = 0;
+        this.bowlingStartTime = null;
+        this.idealContactTime = null;
+        this.bowlTimeout = null;
     }
 
     setup(handGroup, wicketsModule, uiModule, cameraModule) {
@@ -72,12 +80,35 @@ export default class EnvironmentBall {
         this.scene.onBeforeRenderObservable.add(() => {
             if (!this.isAnimating) return;
 
-            // Check if game is paused
-            if (window.gamePaused) {
-                // Store state for resume
+            // Check if game is paused or ball is not ready to bowl
+            if (window.gamePaused || !this.isBallReadyToBowl) {
+                // Store state for resume / keep frozen mesh position
+                if (this.ballMesh) {
+                    this.ballMesh.position.copyFrom(this.position);
+                }
                 this.lastValidPosition = this.position.clone();
                 this.lastValidVelocity = this.velocity.clone();
                 return;
+            }
+
+            // Initialize timing values when the ball actually starts moving
+            if (this.bowlingStartTime === null) {
+                this.bowlingStartTime = Date.now();
+                this.idealContactTime = this.bowlingStartTime + (29.4 / this.velocity.z) * 1000;
+                this.peakSwingSpeed = 0;
+                this.peakSwingTime = 0;
+            }
+
+            // Track peak swing speed and timing while the ball is in flight (before contact/wicket)
+            if (!this.hasHitHandOrStumps && this.targetHandGroup) {
+                const currentSwingSpeed = this.targetHandGroup.swingSpeed ?? 0;
+                const timeSinceBowl = Date.now() - this.bowlingStartTime;
+                if (timeSinceBowl > 100) {
+                    if (currentSwingSpeed > this.peakSwingSpeed) {
+                        this.peakSwingSpeed = currentSwingSpeed;
+                        this.peakSwingTime = Date.now();
+                    }
+                }
             }
 
             const deltaTime = this.scene.getEngine().getDeltaTime() / 1000;
@@ -150,6 +181,10 @@ export default class EnvironmentBall {
 
                     this.hasHitHandOrStumps = true;
                     this.contactPosition = this.position.clone();
+                    
+                    // Record contact moment as peak swing time and speed
+                    this.peakSwingTime = Date.now();
+                    this.peakSwingSpeed = Math.max(this.peakSwingSpeed, this.targetHandGroup.swingSpeed ?? 0);
 
                     // ══════════════════════════════════════════════
                     // READ HAND STATE AT CONTACT
@@ -234,29 +269,29 @@ export default class EnvironmentBall {
                         // Lateral: hand swing direction + contact-point offset (scaled down)
                         newVX = handVX * 3.8 + (this.position.x - handPos.x) * 15;
 
-                        if (swing < 0.10) {
+                        if (swing < 0.14) {
                             // ── Defensive / 1 run ──
                             newVY_ball = 1.5 + Math.random() * 1.0;   // low arc
                             launchZ    = 4  + swing * 10;              // 4 – 5.5
                             newVX     *= 0.35;
                             timing  = 'defensive'; quality = 0.25 + swing;
-                        } else if (swing < 0.25) {
-                            // ── 2–3 runs ── (easier to hit)
-                            const t    = (swing - 0.10) / 0.15;
+                        } else if (swing < 0.35) {
+                            // ── 2–3 runs ──
+                            const t    = (swing - 0.14) / 0.21;
                             newVY_ball = 2.0 + t * 1.5;                // 2.0 – 3.5
                             launchZ    = 8  + t * 8;                  // 8 – 16
                             newVX     *= (0.55 + t * 0.20);
                             timing  = 'good'; quality = 0.48 + t * 0.22;
-                        } else if (swing < 0.70) {
-                            // ── FOUR territory ── (easier to hit, lower launch angle to land inside boundary and bounce/roll)
-                            const t    = (swing - 0.25) / 0.45;
+                        } else if (swing < 0.78) {
+                            // ── FOUR territory ──
+                            const t    = (swing - 0.35) / 0.43;
                             newVY_ball = 2.5 + t * 2.0;                // 2.5 – 4.5
-                            launchZ    = 20  + t * 10;                 // 20 – 30
+                            launchZ = 20 + t * 10; // 20 – 30
                             newVX     *= (0.75 + t * 0.25);
                             timing  = 'perfect'; quality = 0.72 + t * 0.15;
                         } else {
-                            // ── SIX territory ── (harder to hit, high flight arc clears boundary)
-                            const t    = (swing - 0.70) / 0.30;
+                            // ── SIX territory ──
+                            const t    = (swing - 0.78) / 0.22;
                             newVY_ball = 9.0 + t * 7.0;                // 9.0 – 16.0
                             launchZ    = 28  + t * 15;                 // 28 – 43
                             newVX     *= (1.0  + t * 0.30);
@@ -324,11 +359,12 @@ export default class EnvironmentBall {
                     });
 
                     if (this.uiModule) {
-                        this.uiModule.showAnnouncement("WICKET!", "#FF3333");
+                        const { timingDiff, timingText, noSwing } = this.getTimingData();
                         this.uiModule.registerWicket();
+                        this.uiModule.showTimingMeter(timingDiff, timingText, noSwing, "BOWLED! OUT! 🛑", "#FF3333");
                     }
 
-                    setTimeout(() => { this.resetDelivery(); }, 2000);
+                    setTimeout(() => { this.resetDelivery(true); }, 2000);
                     return;
                 }
             }
@@ -340,6 +376,8 @@ export default class EnvironmentBall {
                 if (distanceFromCenter >= this.BOUNDARY_RADIUS) {
                     this.boundaryRegistered = true;
 
+                    const { timingDiff, timingText, noSwing } = this.getTimingData();
+
                     if (this.hasHitGroundAfterStroke) {
                         // Emit boundary.four event
                         EventBus.emit(EventBus.GAME_EVENTS.BOUNDARY_FOUR, {
@@ -348,7 +386,7 @@ export default class EnvironmentBall {
                         });
                         if (this.uiModule) {
                             this.uiModule.addRuns(4);
-                            this.uiModule.showAnnouncement("FOUR!", "#33CCFF");
+                            this.uiModule.showTimingMeter(timingDiff, timingText, noSwing, "FOUR! 🏏", "#33CCFF", this.contactPosition, this.position);
                         }
                     } else {
                         // Emit boundary.six event
@@ -359,11 +397,11 @@ export default class EnvironmentBall {
                         });
                         if (this.uiModule) {
                             this.uiModule.addRuns(6);
-                            this.uiModule.showAnnouncement("SIX!", "#33FF33");
+                            this.uiModule.showTimingMeter(timingDiff, timingText, noSwing, "SIX! ⚡", "#33FF33", this.contactPosition, this.position);
                         }
                     }
 
-                    setTimeout(() => { this.resetDelivery(); }, 1200);
+                    setTimeout(() => { this.resetDelivery(true); }, 1200);
                     return;
                 }
             }
@@ -407,33 +445,42 @@ export default class EnvironmentBall {
                     });
 
                     if (this.uiModule) {
+                        const { timingDiff, timingText, noSwing } = this.getTimingData();
                         this.uiModule.addRuns(runsScored);
-                        this.uiModule.showAnnouncement(
-                            runsScored === 0 ? "DOT BALL" : runsScored === 1 ? `1 RUN` : `${runsScored} RUNS! 🏃`,
-                            runsScored === 0 ? "#888888" : runsScored === 3 ? "#FFAA00" : "#33FF99"
-                        );
+                        const outcomeText = runsScored === 0 ? "DOT BALL" : runsScored === 1 ? `1 RUN` : `${runsScored} RUNS! 🏃`;
+                        const outcomeColor = runsScored === 0 ? "#888888" : runsScored === 3 ? "#FFAA00" : "#33FF99";
+                        this.uiModule.showTimingMeter(timingDiff, timingText, noSwing, outcomeText, outcomeColor, this.contactPosition, this.position);
                     }
 
-                    setTimeout(() => { this.resetDelivery(); }, 1500);
+                    setTimeout(() => { this.resetDelivery(true); }, 1500);
                 }
             } else if (!this.hasHitHandOrStumps && !this.boundaryRegistered && (this.position.z > 12 || this.position.z < -45)) {
                 // Ball passed batsman without contact — no runs
                 this.boundaryRegistered = true;
                 if (this.uiModule) {
+                    const { timingDiff, timingText, noSwing } = this.getTimingData();
                     this.uiModule.incrementBall();
-                    this.uiModule.showAnnouncement("DOT BALL", "#888888");
+                    this.uiModule.showTimingMeter(timingDiff, timingText, noSwing, "DOT BALL", "#888888");
                 }
-                setTimeout(() => { this.resetDelivery(); }, 1500);
+                setTimeout(() => { this.resetDelivery(true); }, 1500);
             }
         });
     }
 
-    resetDelivery() {
+    resetDelivery(autoBowl = false) {
+        // Clear any active auto-bowl timer
+        if (this.bowlTimeout) {
+            clearTimeout(this.bowlTimeout);
+            this.bowlTimeout = null;
+        }
+
+        // Reset common delivery flags
         this.hasHitHandOrStumps = false;
         this.hasHitGroundAfterStroke = false;
         this.boundaryRegistered = false;
         this.contactPosition = null;
 
+        // Common next delivery preparation
         const randomPace = 22 + Math.random() * 6;
         const randomHeight = 1.8 + Math.random() * 0.2;
         const randomLineOffset = (Math.random() - 0.5) * 0.12;
@@ -442,7 +489,9 @@ export default class EnvironmentBall {
         this.velocity = new BABYLON.Vector3((Math.random() - 0.5) * 0.2, -0.6, randomPace);
         this.swingForce = (Math.random() - 0.5) * 1.8;
 
-        this.ballMesh.position.copyFrom(this.position);
+        if (this.ballMesh) {
+            this.ballMesh.position.copyFrom(this.position);
+        }
 
         if (this.targetWicketsModule) {
             this.targetWicketsModule.resetWickets();
@@ -451,6 +500,82 @@ export default class EnvironmentBall {
         if (this.cameraModule) {
             this.cameraModule.resetToStance();
         }
+
+        if (autoBowl) {
+            // Freeze ball at bowler's hand
+            this.isBallReadyToBowl = false;
+            this.bowlingStartTime = null;
+            this.idealContactTime = null;
+            this.peakSwingSpeed = 0;
+            this.peakSwingTime = 0;
+
+            // Schedule auto-bowl after 3 seconds
+            this.bowlTimeout = setTimeout(() => {
+                const checkAndBowl = () => {
+                    if (window.gamePaused) {
+                        // Game is paused, check again in 500ms
+                        this.bowlTimeout = setTimeout(checkAndBowl, 500);
+                    } else {
+                        if (this.uiModule) {
+                            this.uiModule.hideTimingMeter();
+                        }
+                        this.isBallReadyToBowl = true;
+                        this.bowlingStartTime = Date.now();
+                        this.idealContactTime = this.bowlingStartTime + (29.4 / this.velocity.z) * 1000;
+                        this.peakSwingSpeed = 0;
+                        this.peakSwingTime = 0;
+                        this.bowlTimeout = null;
+                    }
+                };
+                checkAndBowl();
+            }, 3000);
+        } else {
+            // Immediate start
+            if (this.uiModule) {
+                this.uiModule.hideTimingMeter();
+            }
+            this.isBallReadyToBowl = true;
+            this.bowlingStartTime = null; // will be set on the next frame in the physics loop
+            this.idealContactTime = null;
+            this.peakSwingSpeed = 0;
+            this.peakSwingTime = 0;
+        }
+    }
+
+    getTimingData() {
+        let noSwing = false;
+        let timingText = "NO SWING";
+        let timingDiff = 0;
+
+        if (this.bowlingStartTime !== null && this.idealContactTime !== null) {
+            if (this.peakSwingSpeed < 0.15) {
+                noSwing = true;
+                timingText = "NO SWING";
+            } else {
+                timingDiff = this.peakSwingTime - this.idealContactTime;
+                if (Math.abs(timingDiff) <= 40) {
+                    timingText = "PERFECT";
+                } else if (Math.abs(timingDiff) <= 100) {
+                    timingText = "GOOD";
+                } else if (timingDiff < 0) {
+                    if (timingDiff < -180) {
+                        timingText = "TOO EARLY";
+                    } else {
+                        timingText = "EARLY";
+                    }
+                } else {
+                    if (timingDiff > 180) {
+                        timingText = "TOO LATE";
+                    } else {
+                        timingText = "LATE";
+                    }
+                }
+            }
+        } else {
+            noSwing = true;
+        }
+
+        return { timingDiff, timingText, noSwing };
     }
 
     _getShotEmoji(shotType) {

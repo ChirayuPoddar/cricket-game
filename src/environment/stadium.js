@@ -8,9 +8,11 @@ export default class EnvironmentStadium {
         this.scene = scene;
     }
 
-    setup() {
+    setup(onProgress = null) {
         this.createBoundaryRope();
-        this.load3DStadiumModel();
+        return new Promise((resolve, reject) => {
+            this.load3DStadiumModel(resolve, onProgress, reject);
+        });
     }
 
     createBoundaryRope() {
@@ -34,47 +36,63 @@ export default class EnvironmentStadium {
         boundaryRope.material = ropeMaterial;
     }
 
-    load3DStadiumModel() {
-        BABYLON.SceneLoader.ImportMesh(
-            "",
-            "./assets/",
-            "stadium.obj",
-            this.scene,
-            (meshes) => {
-                const stadiumRoot = new BABYLON.TransformNode("stadiumRoot", this.scene);
+    load3DStadiumModel(onComplete = null, onProgress = null, onError = null) {
+        try {
+            BABYLON.SceneLoader.ImportMesh(
+                "",
+                "./assets/",
+                "stadium.obj",
+                this.scene,
+                (meshes) => {
+                    try {
+                        const stadiumRoot = new BABYLON.TransformNode("stadiumRoot", this.scene);
 
-                // 1. Define materials
-                const blueMat = new BABYLON.StandardMaterial("blueMat", this.scene);
-                blueMat.diffuseColor = new BABYLON.Color3(0.05, 0.22, 0.65); // Deep Royal Blue
+                        // 1. Define materials
+                        const blueMat = new BABYLON.StandardMaterial("blueMat", this.scene);
+                        blueMat.diffuseColor = new BABYLON.Color3(0.05, 0.22, 0.65); // Deep Royal Blue
 
-                const whiteMat = new BABYLON.StandardMaterial("whiteMat", this.scene);
-                whiteMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.98); // Stark White
+                        const whiteMat = new BABYLON.StandardMaterial("whiteMat", this.scene);
+                        whiteMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.98); // Stark White
 
-                // 2. Loop through every mesh and FORCE the material
-                meshes.forEach((mesh) => {
-                    mesh.setParent(stadiumRoot);
+                        // 2. Loop through every mesh and FORCE the material
+                        meshes.forEach((mesh) => {
+                            mesh.setParent(stadiumRoot);
 
-                    // If the mesh is NOT the playing field (keep that green!), color it
-                    if (!mesh.name.toLowerCase().includes("field") && !mesh.name.toLowerCase().includes("pitch")) {
+                            // If the mesh is NOT the playing field (keep that green!), color it
+                            if (mesh.name && !mesh.name.toLowerCase().includes("field") && !mesh.name.toLowerCase().includes("pitch")) {
 
-                        // Logic: Are these seats? 
-                        // Based on your MTL file, anything with "blue", "seat", or "orange" is seating
-                        if (mesh.material && (
-                            mesh.material.name.toLowerCase().includes("blue") ||
-                            mesh.material.name.toLowerCase().includes("seat") ||
-                            mesh.material.name.toLowerCase().includes("orange")
-                        )) {
-                            mesh.material = blueMat;
-                        } else {
-                            // All structural parts
-                            mesh.material = whiteMat;
-                        }
+                                // Logic: Are these seats? 
+                                // Based on your MTL file, anything with "blue", "seat", or "orange" is seating
+                                const matName = (mesh.material && mesh.material.name) ? mesh.material.name.toLowerCase() : "";
+                                if (matName.includes("blue") || matName.includes("seat") || matName.includes("orange")) {
+                                    mesh.material = blueMat;
+                                } else {
+                                    // All structural parts
+                                    mesh.material = whiteMat;
+                                }
+                            }
+                        });
+
+                        stadiumRoot.scaling = new BABYLON.Vector3(1.8, 1.8, 1.8);
+                        stadiumRoot.position = new BABYLON.Vector3(12, -0.1, 0);
+
+                        if (onComplete) onComplete();
+                    } catch (err) {
+                        console.error("Error in stadium onSuccess callback:", err);
+                        if (onError) onError(err);
                     }
-                });
-
-                stadiumRoot.scaling = new BABYLON.Vector3(1.8, 1.8, 1.8);
-                stadiumRoot.position = new BABYLON.Vector3(12, -0.1, 0);
-            }
-        );
+                },
+                (evt) => {
+                    if (onProgress) onProgress(evt);
+                },
+                (scene, message, exception) => {
+                    console.error("Failed to load stadium mesh:", message, exception);
+                    if (onError) onError(new Error(message));
+                }
+            );
+        } catch (err) {
+            console.error("Sync error starting stadium load:", err);
+            if (onError) onError(err);
+        }
     }
 }
