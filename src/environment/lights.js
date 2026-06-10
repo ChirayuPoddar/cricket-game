@@ -35,8 +35,7 @@ export default class EnvironmentLights {
 
     createShadows() {
         this.shadowGenerator = new BABYLON.ShadowGenerator(1024, this.sunLight);
-        this.shadowGenerator.useBlurExponentialShadowMap = true;
-        this.shadowGenerator.blurKernel = 32;
+        this.shadowGenerator.useExponentialShadowMap = true; // No blur passes (significant rendering speedup)
         return this.shadowGenerator;
     }
 

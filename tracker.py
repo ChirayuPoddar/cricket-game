@@ -52,6 +52,11 @@ async def handler(websocket):
 async def broadcast_hand_data():
     """Capture video frames and broadcast hand positions"""
     global cap, is_running
+
+    # Velocity tracking state
+    prev_hand_x, prev_hand_y = None, None
+    import time
+    prev_time = time.time()
     
     cap = cv2.VideoCapture(0)
     
@@ -117,10 +122,31 @@ async def broadcast_hand_data():
             except Exception as e:
                 logger.warning(f"Error displaying frame: {e}")
 
+            # --- Compute hand velocity ---
+            now = time.time()
+            dt = now - prev_time
+            prev_time = now
+
+            vx, vy, speed = 0.0, 0.0, 0.0
+            if hand_x is not None and prev_hand_x is not None and dt > 0:
+                # Velocity in normalised-coord units per second
+                vx = (hand_x - prev_hand_x) / dt
+                vy = (hand_y - prev_hand_y) / dt
+                speed = (vx ** 2 + vy ** 2) ** 0.5
+
+            if hand_x is not None:
+                prev_hand_x, prev_hand_y = hand_x, hand_y
+
             # Broadcast to connected clients
             if hand_x is not None and len(connected_clients) > 0:
                 try:
-                    payload = json.dumps({"x": hand_x, "y": hand_y})
+                    payload = json.dumps({
+                        "x": hand_x,
+                        "y": hand_y,
+                        "vx": round(vx, 4),
+                        "vy": round(vy, 4),
+                        "speed": round(speed, 4)
+                    })
                     # Send with error handling
                     dead_clients = set()
                     for client in connected_clients:

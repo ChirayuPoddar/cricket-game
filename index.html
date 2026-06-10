@@ -16,53 +16,53 @@
 
     <script type="module">
         // DAY 1 QUICK WINS: New Architecture Modules
-        import ConfigManager from './src/core/ConfigManager.js';
-        import EventBus from './src/core/EventBus.js';
-        import PerformanceMonitor from './src/ui/PerformanceMonitor.js';
-        import ShotClassifier from './src/gameplay/ShotClassifier.js';
+        import ConfigManager from './src/core/ConfigManager.js?v=4';
+        import EventBus from './src/core/EventBus.js?v=4';
+        import PerformanceMonitor from './src/ui/PerformanceMonitor.js?v=4';
+        import ShotClassifier from './src/gameplay/ShotClassifier.js?v=4';
 
         // 1. Import Core Engine Architecture Modules
-        import { GameEngine } from './src/core/engine.js';
-        import { GameScene } from './src/core/scene.js';
+        import { GameEngine } from './src/core/engine.js?v=4';
+        import { GameScene } from './src/core/scene.js?v=4';
 
         // 2. Import All Environment/Scenery Modules
-        import EnvironmentCamera from './src/environment/camera.js';
-        import EnvironmentLights from './src/environment/lights.js';
-        import EnvironmentSky from './src/environment/sky.js';
-        import EnvironmentGround from './src/environment/ground.js';
-        import EnvironmentWickets from './src/environment/wickets.js';
-        import EnvironmentHand from './src/environment/hand.js';
-        import EnvironmentBall from './src/environment/ball.js';
-        import EnvironmentStadium from './src/environment/stadium.js'; 
+        import EnvironmentCamera from './src/environment/camera.js?v=4';
+        import EnvironmentLights from './src/environment/lights.js?v=4';
+        import EnvironmentSky from './src/environment/sky.js?v=4';
+        import EnvironmentGround from './src/environment/ground.js?v=4';
+        import EnvironmentWickets from './src/environment/wickets.js?v=4';
+        import EnvironmentHand from './src/environment/hand.js?v=4';
+        import EnvironmentBall from './src/environment/ball.js?v=4';
+        import EnvironmentStadium from './src/environment/stadium.js?v=4'; 
         
         // Upgraded Scoreboard UI Import
-        import GameUI from './src/ui/scoreboard.js'; 
+        import GameUI from './src/ui/scoreboard.js?v=4'; 
 
         window.isDayMode = true;
 
         window.addEventListener("DOMContentLoaded", async() => {
-            console.log("🚀 Unified Master Bootstrapper Active with Day 1 Architecture!");
+            // console.log("🚀 Unified Master Bootstrapper Active with Day 1 Architecture!");
             
             // STEP 1: Load configuration FIRST (before anything else)
             await ConfigManager.load();
-            console.log('✓ ConfigManager loaded - physics constants ready');
+            // console.log('✓ ConfigManager loaded - physics constants ready');
             
             // STEP 2: Initialize performance monitoring
             const perfMonitor = new PerformanceMonitor();
             perfMonitor.initialize();
             perfMonitor.start();
             window.perfMonitor = perfMonitor; // Make globally accessible for debugging
-            console.log('✓ PerformanceMonitor initialized (Press Ctrl+P to toggle)');
+            // console.log('✓ PerformanceMonitor initialized (Press Ctrl+P to toggle)');
             
             // STEP 3: Make EventBus globally accessible for debugging
             window.EventBus = EventBus;
             window.ConfigManager = ConfigManager;
-            console.log('✓ EventBus ready - event-driven architecture active');
+            // console.log('✓ EventBus ready - event-driven architecture active');
             
             // STEP 4: Initialize shot classifier
             const shotClassifier = new ShotClassifier(ConfigManager.getAll());
             window.shotClassifier = shotClassifier;
-            console.log('✓ ShotClassifier initialized - 10+ shot types supported');
+            // console.log('✓ ShotClassifier initialized - 10+ shot types supported');
 
             const gameEngineModule = new GameEngine("renderCanvas");
             const engine = gameEngineModule.initialize();
@@ -70,9 +70,13 @@
             const gameSceneModule = new GameScene(engine);
             const scene = gameSceneModule.create();
 
-            // Hardware glow effect for night floodlight radiancebloom
-            const gl = new BABYLON.GlowLayer("glow", scene);
+            // Hardware glow effect for night floodlight radiancebloom (optimized)
+            const gl = new BABYLON.GlowLayer("glow", scene, {
+                mainTextureRatio: 0.25, // Quarter-res texture for glow blur (massive speed boost!)
+                blurKernelSize: 16       // Smaller blur kernel size for better performance
+            });
             gl.intensity = 0.6;
+            gl.isEnabled = !window.isDayMode;
 
             const cameraModule = new EnvironmentCamera(scene, gameEngineModule.canvas);
             cameraModule.setup();
@@ -100,6 +104,10 @@
             const handModule = new EnvironmentHand(scene);
             const handGroup = handModule.setup();
 
+            if (cameraModule.setHandGroup) {
+                cameraModule.setHandGroup(handGroup);
+            }
+
             const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
             ballModule.setup(handGroup, wicketsModule, uiModule, cameraModule);
 
@@ -125,6 +133,7 @@
                 window.isDayMode = !window.isDayMode;
                 lightsModule.applyTheme(window.isDayMode);
                 skyModule.applyTheme(window.isDayMode);
+                gl.isEnabled = !window.isDayMode;
                 toggleBtn.innerText = window.isDayMode ? "☀️ Day/Night" : "🌙 Day/Night";
             };
             document.body.appendChild(toggleBtn);

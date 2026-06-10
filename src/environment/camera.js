@@ -5,13 +5,14 @@ export default class EnvironmentCamera {
         this.canvas = canvas;
         this.camera = null;
 
-        // Camera positioning configurations
-        this.defaultPosition = new BABYLON.Vector3(0, 1.4, 15);
+        // Camera positioning configurations (Z = 7.5 is exactly in front of stumps at Z = 8.2)
+        this.defaultPosition = new BABYLON.Vector3(0, 1.4, 7.5);
         this.defaultTarget = new BABYLON.Vector3(0, 0.8, -10);
 
         this.targetBallMesh = null;
         this.isTrackingBall = false;
         this.trackingSmoothness = 0.08; // Interpolation speed (LERP)
+        this.handGroup = null;
     }
 
     setup() {
@@ -44,6 +45,18 @@ export default class EnvironmentCamera {
     }
 
     /**
+     * Store handGroup reference but do not parent camera to avoid rendering issues
+     */
+    setHandGroup(handGroup) {
+        this.handGroup = handGroup;
+        if (this.camera) {
+            this.camera.parent = null;
+            this.camera.position.copyFrom(this.defaultPosition);
+            this.camera.setTarget(this.defaultTarget.clone());
+        }
+    }
+
+    /**
      * Connects the ball reference to the camera module
      */
     setBallReference(ballMesh) {
@@ -62,8 +75,11 @@ export default class EnvironmentCamera {
      */
     resetToStance() {
         this.isTrackingBall = false;
-        this.camera.position.copyFrom(this.defaultPosition);
-        this.camera.setTarget(this.defaultTarget.clone());
+        if (this.camera) {
+            this.camera.parent = null;
+            this.camera.position.copyFrom(this.defaultPosition);
+            this.camera.setTarget(this.defaultTarget.clone());
+        }
     }
 
     registerDynamicTrackingLoop() {

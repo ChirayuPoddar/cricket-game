@@ -12,6 +12,22 @@ export default class EnvironmentHand {
         this.currentX = 0.5;
         this.currentY = 0.5;
 
+        // Swing speed + direction tracking
+        this.prevWorldX = null;
+        this.prevWorldY = null;
+        this.trackerSpeed = 0;       // scalar speed from WebSocket (normalised coords/sec)
+        this.trackerVX    = 0;       // signed X velocity from WebSocket
+        this.trackerVY    = 0;       // signed Y velocity from WebSocket
+        this.swingSpeed   = 0;       // smoothed 0-1 swing power (magnitude)
+        this.swingVX      = 0;       // signed world-unit/sec X velocity at bat
+        this.swingVY      = 0;       // signed world-unit/sec Y velocity at bat (neg = down = forward)
+        this.swingSpeedDecay = 0.94; // how fast speed magnitude fades (increased to hold peak swing speed longer)
+
+        // SWING SPEED THRESHOLDS (world units/sec)
+        // Calibrate from console: gentle push ≈ 0.8, hard swing ≈ 4.0+
+        this.SWING_SLOW_MAX = 0.6;   // below this → 1/2/3 runs territory
+        this.SWING_FAST_MIN = 2.0;   // above this → boundary territory (reduced further to make boundaries easy)
+
         // Snappy, highly responsive tracking factor
         this.lerpFactor = 0.45;
 
@@ -40,7 +56,7 @@ export default class EnvironmentHand {
             })
                 .then((stream) => { 
                     videoElement.srcObject = stream;
-                    console.log("Webcam access granted");
+                    // console.log("Webcam access granted");
                 })
                 .catch((err) => { 
                     console.warn("Camera access denied, using keyboard fallback:", err);
@@ -54,15 +70,16 @@ export default class EnvironmentHand {
 
         this.handGroup = new BABYLON.TransformNode("handGroup Anchor", this.scene);
 
-        this.trackerVisual = BABYLON.MeshBuilder.CreateSphere("trackerVisual", { diameter: 0.4 }, this.scene);
+        this.trackerVisual = BABYLON.MeshBuilder.CreateSphere("trackerVisual", { diameter: 0.8 }, this.scene);
         this.trackerVisual.parent = this.handGroup;
+        this.trackerVisual.isVisible = false;
 
         const trackingMat = new BABYLON.StandardMaterial("trackingMat", this.scene);
         trackingMat.diffuseColor = new BABYLON.Color3(0, 1, 0);
         trackingMat.emissiveColor = new BABYLON.Color3(0, 0.4, 0);
         this.trackerVisual.material = trackingMat;
 
-        this.handGroup.position = new BABYLON.Vector3(0, 1.2, 8.0);
+        this.handGroup.position = new BABYLON.Vector3(0, 1.2, 7.4);
 
         // Setup keyboard controls
         this.setupKeyboardControls();
@@ -96,7 +113,7 @@ export default class EnvironmentHand {
             this.connectionStatus = "connecting";
 
             this.socket.onopen = () => { 
-                console.log("✅ Frontend connected to YOLO Server!");
+                // console.log("✅ Frontend connected to YOLO Server!");
                 this.connectionStatus = "connected";
                 this.reconnectAttempts = 0;
                 this.showStatusIndicator("✅ WEBCAM TRACKING ACTIVE");
@@ -110,6 +127,10 @@ export default class EnvironmentHand {
                         this.targetX = data.x;
                         this.targetY = data.y;
                     }
+                    // Read speed + signed velocity from tracker
+                    if (data.speed !== undefined) this.trackerSpeed = data.speed;
+                    if (data.vx    !== undefined) this.trackerVX    = data.vx;  // camera-space vx
+                    if (data.vy    !== undefined) this.trackerVY    = data.vy;  // camera-space vy
                 } catch (err) { 
                     console.error("Error unpacking packet:", err); 
                 }
@@ -118,6 +139,10 @@ export default class EnvironmentHand {
             this.socket.onerror = (error) => {
                 console.error("WebSocket error:", error);
                 this.connectionStatus = "error";
+                if (navigator.brave) {
+                    this.showStatusIndicator("⛔ WEBSOCKET BLOCKED BY BRAVE SHIELDS");
+                    console.warn("Brave Browser detected! Localhost WebSockets (ws://localhost:8765) are blocked by default. Click the Brave Lion icon in the address bar and toggle Shields to OFF to allow connection.");
+                }
             };
 
             this.socket.onclose = () => { 
@@ -173,7 +198,60 @@ export default class EnvironmentHand {
 
         this.handGroup.position.x = calculatedX;
         this.handGroup.position.y = calculatedY;
-        this.handGroup.position.z = 8.0;
+        this.handGroup.position.z = 7.4;
+
+        // --- SWING SPEED + DIRECTION COMPUTATION ---
+        if (this.prevWorldX !== null) {
+            // Per-frame world-space deltas (world units per frame)
+            const dxWorld = calculatedX - this.prevWorldX;
+            const dyWorld = calculatedY - this.prevWorldY;
+
+            // Convert to world units/sec (assume ~60fps; actual deltaTime not available here)
+            const FPS_EST = 60;
+            const wVX = dxWorld * FPS_EST;  // positive = moving right in game world
+            const wVY = dyWorld * FPS_EST;  // negative = moving down (forward swing proxy)
+
+            // In webcam mode, additionally scale by the tracker's own speed signal
+            // (tracker speed is in normalised camera coords/sec - remap to world scale)
+            // World X range = 6.0 units, camera X range = 1.0 → scale factor = 6.0
+            // World Y range = 5.0 units, camera Y range = 1.0 → scale factor = 5.0
+            let rawSpeed;
+            if (!this.keyboardMode) {
+                // Use tracker scalar speed (normalised → world scale via average 5.5)
+                rawSpeed = this.trackerSpeed * 5.5;
+                // For signed VX/VY in webcam mode, use world deltas
+                // (tracker vx/vy are in camera space; world deltas are already transformed)
+            } else {
+                rawSpeed = Math.sqrt(wVX * wVX + wVY * wVY);
+            }
+
+            // Peak-hold with decay so the swing registers at ball contact
+            this.swingSpeed = Math.max(
+                Math.min(1.0, rawSpeed / this.SWING_FAST_MIN),
+                this.swingSpeed * this.swingSpeedDecay
+            );
+
+            // Signed directional velocity (world units/sec) — peak-hold per axis
+            // Use exponential smoothing so a sudden jerk registers strongly
+            const VX_DECAY = 0.80;
+            const VY_DECAY = 0.80;
+            // Take the value with larger absolute magnitude
+            this.swingVX = Math.abs(wVX) > Math.abs(this.swingVX * VX_DECAY)
+                ? wVX : this.swingVX * VX_DECAY;
+            this.swingVY = Math.abs(wVY) > Math.abs(this.swingVY * VY_DECAY)
+                ? wVY : this.swingVY * VY_DECAY;
+        }
+
+        this.prevWorldX = calculatedX;
+        this.prevWorldY = calculatedY;
+
+        // Expose everything on the handGroup so ball.js can read at contact
+        this.handGroup.swingSpeed = this.swingSpeed;  // 0-1 magnitude
+        this.handGroup.swingVX    = this.swingVX;     // world units/sec, signed
+        this.handGroup.swingVY    = this.swingVY;     // world units/sec, signed (neg=down=forward)
+
+        // Uncomment to calibrate thresholds:
+        // console.log(`swingVX:${this.swingVX.toFixed(2)} swingVY:${this.swingVY.toFixed(2)} speed:${this.swingSpeed.toFixed(2)}`);
     }
 
     showStatusIndicator(message) {

@@ -48,7 +48,7 @@ export default class PerformanceMonitor {
   initialize() {
     this.createOverlay();
     this.setupKeyboardToggle();
-    console.log('✓ PerformanceMonitor initialized (Press Ctrl+P to toggle)');
+    // console.log('✓ PerformanceMonitor initialized (Press Ctrl+P to toggle)');
   }
 
   /**
@@ -122,7 +122,7 @@ export default class PerformanceMonitor {
   start() {
     this.enabled = true;
     this.lastFrameTime = Date.now();
-    console.log('✓ PerformanceMonitor started');
+    // console.log('✓ PerformanceMonitor started');
   }
 
   /**
@@ -130,7 +130,7 @@ export default class PerformanceMonitor {
    */
   stop() {
     this.enabled = false;
-    console.log('✗ PerformanceMonitor stopped');
+    // console.log('✗ PerformanceMonitor stopped');
   }
 
   /**
@@ -140,7 +140,7 @@ export default class PerformanceMonitor {
     if (this.overlayElement) {
       const isVisible = this.overlayElement.style.display !== 'none';
       this.overlayElement.style.display = isVisible ? 'none' : 'block';
-      console.log(`Performance Monitor ${isVisible ? 'hidden' : 'shown'} (Ctrl+P)`);
+      // console.log(`Performance Monitor ${isVisible ? 'hidden' : 'shown'} (Ctrl+P)`);
     }
   }
 
@@ -326,7 +326,7 @@ Status: ${this.getStatusIndicator()}
       boundaries: 0,
       shotTypes: {}
     };
-    console.log('✓ PerformanceMonitor reset');
+    // console.log('✓ PerformanceMonitor reset');
   }
 
   /**

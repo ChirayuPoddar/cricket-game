@@ -25,6 +25,7 @@ export default class EnvironmentBall {
         this.hasHitGroundAfterStroke = false;
         this.boundaryRegistered = false;
         this.BOUNDARY_RADIUS = 40.0;
+        this.contactPosition = null;
 
         // Physics state preservation for pause
         this.lastValidPosition = null;
@@ -84,19 +85,57 @@ export default class EnvironmentBall {
             this.velocity.y += this.GRAVITY * deltaTime;
             this.velocity.x += this.swingForce * deltaTime;
 
+            // ── AIR RESISTANCE (always, small) ──────────────────────────────
+            if (this.hasHitHandOrStumps) {
+                this.velocity.x *= 0.998;
+                this.velocity.z *= 0.998;
+            }
+
             this.position.x += this.velocity.x * deltaTime;
             this.position.y += this.velocity.y * deltaTime;
             this.position.z += this.velocity.z * deltaTime;
 
-            // Pitch turf and outfield ground bouncing collision
+            // ── GROUND BOUNCE + FRICTION ─────────────────────────────────────
             const ballRadius = this.BALL_DIAMETER / 2;
             if (this.position.y <= ballRadius) {
                 this.position.y = ballRadius;
-                this.velocity.y = -this.velocity.y * 0.65;
-                this.swingForce *= 0.1;
 
+                if (Math.abs(this.velocity.y) > 0.4) {
+                    // Real bounce — reverse with restitution
+                    this.velocity.y = -this.velocity.y * 0.60;
+
+                    if (this.hasHitHandOrStumps) {
+                        // Each bounce robs ~14% of horizontal speed (grass contact)
+                        this.velocity.x *= 0.86;
+                        this.velocity.z *= 0.86;
+                    }
+                } else {
+                    // Ball is now rolling — kill vertical oscillation
+                    this.velocity.y = 0;
+                }
+
+                this.swingForce *= 0.1;
                 if (this.hasHitHandOrStumps) {
                     this.hasHitGroundAfterStroke = true;
+                }
+            }
+
+            // ── ROLLING DECELERATION (grass friction while on ground) ────────
+            // Only when ball is very close to ground and not bouncing significantly
+            if (this.hasHitHandOrStumps &&
+                this.position.y <= ballRadius + 0.08 &&
+                Math.abs(this.velocity.y) < 0.5) {
+
+                const hSpeed = Math.sqrt(
+                    this.velocity.x * this.velocity.x +
+                    this.velocity.z * this.velocity.z
+                );
+                if (hSpeed > 0.05) {
+                    // Decelerate at 3.2 units/sec² — ball rolls much further and scoring is more generous
+                    const reduction = Math.min(hSpeed, 3.2 * deltaTime);
+                    const factor    = (hSpeed - reduction) / hSpeed;
+                    this.velocity.x *= factor;
+                    this.velocity.z *= factor;
                 }
             }
 
@@ -107,56 +146,159 @@ export default class EnvironmentBall {
                 const distY = Math.abs(this.position.y - handPos.y);
                 const distZ = Math.abs(this.position.z - handPos.z);
 
-                if (distX < 0.35 && distY < 0.35 && distZ < 0.30) {
+                if (distX < 0.65 && distY < 0.65 && distZ < 0.55) {
 
                     this.hasHitHandOrStumps = true;
-                    const strikeError = distX;
-                    this.velocity.z = -Math.abs(this.velocity.z) * 2.5;
-                    this.velocity.x = (this.position.x - handPos.x) * 35;
+                    this.contactPosition = this.position.clone();
 
-                    let timing = 'good';
-                    let quality = 0.6;
-                    
-                    if (strikeError < 0.12) {
-                        // Perfect strike
-                        this.velocity.y = 18.0 + (Math.random() * 4.0);
-                        this.velocity.z *= 1.5;
-                        timing = 'perfect';
-                        quality = 0.95;
+                    // ══════════════════════════════════════════════
+                    // READ HAND STATE AT CONTACT
+                    // ══════════════════════════════════════════════
+                    const swing  = Math.max(0, Math.min(1, this.targetHandGroup.swingSpeed ?? 0.4));
+                    const handVX = this.targetHandGroup.swingVX ?? 0;  // world units/sec, +ve = right
+                    const handVY = this.targetHandGroup.swingVY ?? 0;  // world units/sec, -ve = down = forward swing
+
+                    // ══════════════════════════════════════════════
+                    // EDGE DETECTION
+                    // Normalise contact offset to hitbox half-size:
+                    //   0.0 = dead centre (sweet spot)
+                    //   1.0 = outer boundary of hitbox (thick edge)
+                    // ══════════════════════════════════════════════
+                    const normOffX  = distX / 0.65;   // 0-1 (updated for larger hitbox)
+                    const normOffY  = distY / 0.65;   // 0-1
+                    const edgeness  = Math.sqrt(normOffX * normOffX + normOffY * normOffY); // 0 = center, ~1.4 = far corner
+                    const isEdge    = edgeness > 0.60; // outside ~60% of hitbox = edge
+                    const isThickEdge = edgeness > 0.85;
+
+                    // Sign of horizontal miss tells us which edge (off or leg side)
+                    const edgeSideSign = (this.position.x - handPos.x) >= 0 ? 1 : -1;
+
+                    // ══════════════════════════════════════════════
+                    // DIRECTION PHYSICS
+                    // Coordinate system:
+                    //   -Z = toward field (straight drive direction)
+                    //   +Z = behind batsman (keeper / slip cordon)
+                    //   ±X = off side / leg side
+                    //
+                    // handVY < 0  → hand moving DOWN  → forward drive  → ball goes in -Z
+                    // handVY > 0  → hand lifting UP    → defensive/scoop → ball may go +Z
+                    // handVX ±    → lateral swing direction → ball deflects on X axis
+                    // ══════════════════════════════════════════════
+
+                    let newVX, newVY_ball, newVZ;
+                    let timing, quality;
+
+                    if (isEdge) {
+                        // ── EDGE CONTACT ──────────────────────────────────
+                        // Thick edge: squirts wide + low
+                        // Thin edge: glancing deflection to slip/fine-leg
+                        // Increased base speed and edgePower so edges don't always result in 1 run
+                        const edgePower = 0.55 + (1.0 - edgeness) * 0.4;
+
+                        if (isThickEdge) {
+                            newVX      = edgeSideSign * (12 + Math.random() * 12);
+                            newVZ      = (Math.random() > 0.45 ? -1 : 1) * (6 + Math.random() * 8);
+                            newVY_ball = 3.5 + Math.random() * 4;
+                        } else {
+                            newVX      = edgeSideSign * (6 + Math.random() * 9) + handVX * 0.8;
+                            newVZ      = (Math.random() > 0.35 ? 1 : -1) * (4 + Math.random() * 7);
+                            newVY_ball = 4 + Math.random() * 5;
+                        }
+
+                        newVX      *= edgePower;
+                        newVZ      *= edgePower;
+                        newVY_ball *= (0.6 + edgePower * 0.4);
+
+                        timing  = 'edge';
+                        quality = 0.2 + (1 - edgeness) * 0.3;
+
+                        // console.log(`⚠️ EDGE | edgeness:${edgeness.toFixed(2)} thick:${isThickEdge}`);
+
                     } else {
-                        // Edges/mistimed strike
-                        this.velocity.y = 4.0 + (Math.random() * 2.0);
-                        timing = 'mistimed';
-                        quality = 0.4;
+                        // ── MIDDLE OF BAT ─────────────────────────────────
+                        //
+                        // DIRECTION: handVY < 0 (swinging DOWN) → forward drive (−Z)
+                        //            handVY > 0 (lifting UP)    → scoop/glance (+Z)
+                        //            handVX ±                   → off/leg side
+                        //
+                        // Normalise: hard downswing VY ≈ −4 to −8 world units/sec
+                        const fwdFactor = -handVY / 6.0;  // +ve = forward, −ve = backward
+
+                        const zSign = fwdFactor >  0.25  ? -1.0
+                                    : fwdFactor < -0.20  ? +1.0
+                                    :                      -(0.5 + Math.random() * 0.4);
+
+                        // ── FIXED LAUNCH SPEEDS (units/sec) ───────────────
+                        let launchZ;
+
+                        // Lateral: hand swing direction + contact-point offset (scaled down)
+                        newVX = handVX * 3.8 + (this.position.x - handPos.x) * 15;
+
+                        if (swing < 0.10) {
+                            // ── Defensive / 1 run ──
+                            newVY_ball = 1.5 + Math.random() * 1.0;   // low arc
+                            launchZ    = 4  + swing * 10;              // 4 – 5.5
+                            newVX     *= 0.35;
+                            timing  = 'defensive'; quality = 0.25 + swing;
+                        } else if (swing < 0.25) {
+                            // ── 2–3 runs ── (easier to hit)
+                            const t    = (swing - 0.10) / 0.15;
+                            newVY_ball = 2.0 + t * 1.5;                // 2.0 – 3.5
+                            launchZ    = 8  + t * 8;                  // 8 – 16
+                            newVX     *= (0.55 + t * 0.20);
+                            timing  = 'good'; quality = 0.48 + t * 0.22;
+                        } else if (swing < 0.70) {
+                            // ── FOUR territory ── (easier to hit, lower launch angle to land inside boundary and bounce/roll)
+                            const t    = (swing - 0.25) / 0.45;
+                            newVY_ball = 2.5 + t * 2.0;                // 2.5 – 4.5
+                            launchZ    = 20  + t * 10;                 // 20 – 30
+                            newVX     *= (0.75 + t * 0.25);
+                            timing  = 'perfect'; quality = 0.72 + t * 0.15;
+                        } else {
+                            // ── SIX territory ── (harder to hit, high flight arc clears boundary)
+                            const t    = (swing - 0.70) / 0.30;
+                            newVY_ball = 9.0 + t * 7.0;                // 9.0 – 16.0
+                            launchZ    = 28  + t * 15;                 // 28 – 43
+                            newVX     *= (1.0  + t * 0.30);
+                            timing  = 'perfect'; quality = 0.88 + t * 0.12;
+                        }
+
+                        newVZ = zSign * launchZ;
+
+                        // console.log(`🏏 Swing:${(swing*100).toFixed(0)}% fwd:${fwdFactor.toFixed(2)} launchZ:${launchZ.toFixed(1)} newVZ:${newVZ.toFixed(1)} newVY:${newVY_ball.toFixed(1)}`);
                     }
 
-                    // Classify shot type based on mechanics
-                    // ShotClassifier.classify() is an instance method; use the globally created instance
+                    // Apply computed velocities
+                    this.velocity.x = newVX;
+                    this.velocity.y = newVY_ball;
+                    this.velocity.z = newVZ;
+
+                    // Classify and emit
                     const classifier = window.shotClassifier || new ShotClassifier();
-                    const shotClass = classifier.classify({
-                        velocity: this.velocity,
-                        position: this.position,
+                    const shotClass  = classifier.classify({
+                        velocity:     this.velocity,
+                        position:     this.position,
                         handPosition: handPos,
-                        timing: timing
+                        timing:       timing
                     }, {
                         position: this.position,
                         velocity: this.velocity
                     });
 
-                    // Emit shot event for analytics and UI feedback
                     EventBus.emit(EventBus.GAME_EVENTS.SHOT_PLAYED, {
-                        shotType: shotClass.shotType,
-                        power: shotClass.power,
-                        direction: shotClass.direction,
-                        timing: timing,
-                        quality: quality,
-                        position: this.position.clone(),
-                        velocity: this.velocity.clone()
+                        shotType:   shotClass.shotType,
+                        power:      shotClass.power,
+                        direction:  shotClass.direction,
+                        timing,
+                        quality,
+                        swingSpeed: swing,
+                        edgeness,
+                        position:   this.position.clone(),
+                        velocity:   this.velocity.clone()
                     });
 
-                    // Log to console for debugging
                     const shotEmoji = this._getShotEmoji(shotClass.shotType);
-                    console.log(`${shotEmoji} ${shotClass.shotType} - ${timing.toUpperCase()} timing - Power: ${shotClass.power.toFixed(0)}%`);
+                    // console.log(`${shotEmoji} ${shotClass.shotType} - ${timing.toUpperCase()} - Power: ${shotClass.power.toFixed(0)}%`);
 
                     if (this.cameraModule) this.cameraModule.startTracking();
                 }
@@ -229,47 +371,68 @@ export default class EnvironmentBall {
             this.ballMesh.position.copyFrom(this.position);
 
             // D. IN-FIELD RUN SCORING & DISMISSAL RESETS
-            if (this.hasHitHandOrStumps) {
-                if (!this.boundaryRegistered && (this.position.z < -40 || Math.abs(this.position.x) > 25 || this.velocity.length() < 1.5)) {
-                    this.boundaryRegistered = true;
-                    const travelDistance = Math.abs(this.position.z);
-                    let runsScored = 1;
-                    if (travelDistance > 25) runsScored = 3;
-                    else if (travelDistance > 15) runsScored = 2;
+            // Only runs if the ball was hit by the bat and not a wicket
+            if (this.hasHitHandOrStumps && !(this.targetWicketsModule && this.targetWicketsModule.isSmashed)) {
+                // Ball is out-of-play when it stops rolling on the ground
+                const isRollingOnGround = this.position.y <= ballRadius + 0.1 && Math.abs(this.velocity.y) < 0.5;
+                const hSpeed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+                const outOfPlay = isRollingOnGround && hSpeed < 0.25;
 
-                    // Emit runs scored event
+                if (!this.boundaryRegistered && outOfPlay) {
+                    this.boundaryRegistered = true;
+
+                    // 2D ground distance from where contact happened
+                    const travelDist = this.contactPosition ? Math.sqrt(
+                        Math.pow(this.position.x - this.contactPosition.x, 2) +
+                        Math.pow(this.position.z - this.contactPosition.z, 2)
+                    ) : Math.sqrt(
+                        this.position.x * this.position.x +
+                        this.position.z * this.position.z
+                    );
+
+                    // Thresholds calibrated for 2D distance from contact point:
+                    //   very gentle block/defense → stops < 3u  → 0 runs (Dot ball)
+                    //   gentle hit                → stops 3-10u → 1 run
+                    //   medium hit                → stops 10-20u → 2 runs
+                    //   hard hit                  → stops > 20u → 3 runs
+                    let runsScored = 1;
+                    if (travelDist < 3.0) runsScored = 0;
+                    else if (travelDist >= 20.0) runsScored = 3;
+                    else if (travelDist >= 10.0) runsScored = 2;
+
                     EventBus.emit(EventBus.GAME_EVENTS.RUNS_SCORED, {
                         runs: runsScored,
                         position: this.position.clone(),
-                        distance: travelDistance
+                        distance: travelDist
                     });
 
                     if (this.uiModule) {
                         this.uiModule.addRuns(runsScored);
-                        if (runsScored > 1) {
-                            this.uiModule.showAnnouncement(`${runsScored} RUNS! 🏃`, "#33FF99");
-                        }
+                        this.uiModule.showAnnouncement(
+                            runsScored === 0 ? "DOT BALL" : runsScored === 1 ? `1 RUN` : `${runsScored} RUNS! 🏃`,
+                            runsScored === 0 ? "#888888" : runsScored === 3 ? "#FFAA00" : "#33FF99"
+                        );
                     }
 
                     setTimeout(() => { this.resetDelivery(); }, 1500);
                 }
-            } else if (this.position.z > 12 || this.position.z < -45) {
-                this.resetDelivery();
+            } else if (!this.hasHitHandOrStumps && !this.boundaryRegistered && (this.position.z > 12 || this.position.z < -45)) {
+                // Ball passed batsman without contact — no runs
+                this.boundaryRegistered = true;
+                if (this.uiModule) {
+                    this.uiModule.incrementBall();
+                    this.uiModule.showAnnouncement("DOT BALL", "#888888");
+                }
+                setTimeout(() => { this.resetDelivery(); }, 1500);
             }
         });
     }
 
     resetDelivery() {
-        if (!this.boundaryRegistered && !(this.targetWicketsModule && this.targetWicketsModule.isSmashed)) {
-            if (this.uiModule) {
-                this.uiModule.incrementBall();
-                this.uiModule.updateDisplay();
-            }
-        }
-
         this.hasHitHandOrStumps = false;
         this.hasHitGroundAfterStroke = false;
         this.boundaryRegistered = false;
+        this.contactPosition = null;
 
         const randomPace = 22 + Math.random() * 6;
         const randomHeight = 1.8 + Math.random() * 0.2;

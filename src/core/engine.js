@@ -15,8 +15,24 @@ export class GameEngine {
             return null;
         }
 
-        // Initialize Babylon engine with antialiasing turned on for smooth edges
-        this.engine = new BABYLON.Engine(this.canvas, true, { antialias: true });
+        // Temporarily suppress console.log to skip the Babylon.js startup brand print
+        const originalLog = console.log;
+        console.log = () => {};
+
+        // Initialize Babylon engine with high performance settings and discrete GPU request
+        this.engine = new BABYLON.Engine(this.canvas, true, { 
+            antialias: true,
+            powerPreference: "high-performance"
+        });
+
+        // Restore console.log immediately
+        console.log = originalLog;
+
+        // Optimize resolution for high-DPI (Retina) displays to prevent massive GPU render overhead
+        if (window.devicePixelRatio > 1) {
+            this.engine.setHardwareScalingLevel(1.5);
+        }
+
         this.setupResizeListener();
 
         return this.engine;

@@ -42,6 +42,6 @@ export default class GameManager {
 
         // 3. Start
         this.engineModule.startRenderLoop(this.scene);
-        console.log("Game Manager: Initialization Complete.");
+        // console.log("Game Manager: Initialization Complete.");
     }
 }

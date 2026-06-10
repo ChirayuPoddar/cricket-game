@@ -30,7 +30,7 @@ export default class ConfigManager {
       
       this.#config = await response.json();
       this.#isLoaded = true;
-      console.log('✓ ConfigManager loaded successfully', this.#config);
+      // console.log('✓ ConfigManager loaded successfully', this.#config);
       this.#notifyObservers('loaded', this.#config);
     } catch (error) {
       console.error('✗ ConfigManager failed to load:', error);
@@ -155,7 +155,7 @@ export default class ConfigManager {
     const oldValue = obj[lastKey];
     obj[lastKey] = value;
     
-    console.log(`Config updated: ${path} = ${value} (was: ${oldValue})`);
+    // console.log(`Config updated: ${path} = ${value} (was: ${oldValue})`);
     this.#notifyObservers('changed', { path, oldValue, newValue: value });
     
     return true;

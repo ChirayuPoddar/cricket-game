@@ -90,7 +90,7 @@ pip install -r requirements.txt
 
 **Step 2: Start the WebSocket Server**
 ```bash
-python tracker.py
+python3 tracker.py
 ```
 
 You should see:
@@ -103,7 +103,7 @@ INFO - YOLO Tracking Server Live! Step into frame...
 **Step 3: Start a Local Web Server** (new terminal)
 ```bash
 # Python 3
-python -m http.server 8000
+python3 -m http.server 8000
 ```
 
 **Step 4: Open in Browser**
