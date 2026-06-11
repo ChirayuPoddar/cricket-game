@@ -32,7 +32,7 @@ export default class EnvironmentBall {
         this.lastValidVelocity = null;
 
         // SWING TIMING & AUTO-BOWL STATE
-        this.isBallReadyToBowl = true;
+        this.isBallReadyToBowl = false;
         this.peakSwingSpeed = 0;
         this.peakSwingTime = 0;
         this.bowlingStartTime = null;
@@ -164,7 +164,7 @@ export default class EnvironmentBall {
                 if (hSpeed > 0.05) {
                     // Decelerate at 3.2 units/sec² — ball rolls much further and scoring is more generous
                     const reduction = Math.min(hSpeed, 3.2 * deltaTime);
-                    const factor    = (hSpeed - reduction) / hSpeed;
+                    const factor = (hSpeed - reduction) / hSpeed;
                     this.velocity.x *= factor;
                     this.velocity.z *= factor;
                 }
@@ -181,7 +181,7 @@ export default class EnvironmentBall {
 
                     this.hasHitHandOrStumps = true;
                     this.contactPosition = this.position.clone();
-                    
+
                     // Record contact moment as peak swing time and speed
                     this.peakSwingTime = Date.now();
                     this.peakSwingSpeed = Math.max(this.peakSwingSpeed, this.targetHandGroup.swingSpeed ?? 0);
@@ -189,7 +189,7 @@ export default class EnvironmentBall {
                     // ══════════════════════════════════════════════
                     // READ HAND STATE AT CONTACT
                     // ══════════════════════════════════════════════
-                    const swing  = Math.max(0, Math.min(1, this.targetHandGroup.swingSpeed ?? 0.4));
+                    const swing = Math.max(0, Math.min(1, this.targetHandGroup.swingSpeed ?? 0.4));
                     const handVX = this.targetHandGroup.swingVX ?? 0;  // world units/sec, +ve = right
                     const handVY = this.targetHandGroup.swingVY ?? 0;  // world units/sec, -ve = down = forward swing
 
@@ -199,10 +199,10 @@ export default class EnvironmentBall {
                     //   0.0 = dead centre (sweet spot)
                     //   1.0 = outer boundary of hitbox (thick edge)
                     // ══════════════════════════════════════════════
-                    const normOffX  = distX / 0.65;   // 0-1 (updated for larger hitbox)
-                    const normOffY  = distY / 0.65;   // 0-1
-                    const edgeness  = Math.sqrt(normOffX * normOffX + normOffY * normOffY); // 0 = center, ~1.4 = far corner
-                    const isEdge    = edgeness > 0.60; // outside ~60% of hitbox = edge
+                    const normOffX = distX / 0.65;   // 0-1 (updated for larger hitbox)
+                    const normOffY = distY / 0.65;   // 0-1
+                    const edgeness = Math.sqrt(normOffX * normOffX + normOffY * normOffY); // 0 = center, ~1.4 = far corner
+                    const isEdge = edgeness > 0.60; // outside ~60% of hitbox = edge
                     const isThickEdge = edgeness > 0.85;
 
                     // Sign of horizontal miss tells us which edge (off or leg side)
@@ -231,20 +231,20 @@ export default class EnvironmentBall {
                         const edgePower = 0.55 + (1.0 - edgeness) * 0.4;
 
                         if (isThickEdge) {
-                            newVX      = edgeSideSign * (12 + Math.random() * 12);
-                            newVZ      = (Math.random() > 0.45 ? -1 : 1) * (6 + Math.random() * 8);
+                            newVX = edgeSideSign * (12 + Math.random() * 12);
+                            newVZ = (Math.random() > 0.45 ? -1 : 1) * (6 + Math.random() * 8);
                             newVY_ball = 3.5 + Math.random() * 4;
                         } else {
-                            newVX      = edgeSideSign * (6 + Math.random() * 9) + handVX * 0.8;
-                            newVZ      = (Math.random() > 0.35 ? 1 : -1) * (4 + Math.random() * 7);
+                            newVX = edgeSideSign * (6 + Math.random() * 9) + handVX * 0.8;
+                            newVZ = (Math.random() > 0.35 ? 1 : -1) * (4 + Math.random() * 7);
                             newVY_ball = 4 + Math.random() * 5;
                         }
 
-                        newVX      *= edgePower;
-                        newVZ      *= edgePower;
+                        newVX *= edgePower;
+                        newVZ *= edgePower;
                         newVY_ball *= (0.6 + edgePower * 0.4);
 
-                        timing  = 'edge';
+                        timing = 'edge';
                         quality = 0.2 + (1 - edgeness) * 0.3;
 
                         // console.log(`⚠️ EDGE | edgeness:${edgeness.toFixed(2)} thick:${isThickEdge}`);
@@ -259,9 +259,9 @@ export default class EnvironmentBall {
                         // Normalise: hard downswing VY ≈ −4 to −8 world units/sec
                         const fwdFactor = -handVY / 6.0;  // +ve = forward, −ve = backward
 
-                        const zSign = fwdFactor >  0.25  ? -1.0
-                                    : fwdFactor < -0.20  ? +1.0
-                                    :                      -(0.5 + Math.random() * 0.4);
+                        const zSign = fwdFactor > 0.25 ? -1.0
+                            : fwdFactor < -0.20 ? +1.0
+                                : -(0.5 + Math.random() * 0.4);
 
                         // ── FIXED LAUNCH SPEEDS (units/sec) ───────────────
                         let launchZ;
@@ -272,30 +272,30 @@ export default class EnvironmentBall {
                         if (swing < 0.14) {
                             // ── Defensive / 1 run ──
                             newVY_ball = 1.5 + Math.random() * 1.0;   // low arc
-                            launchZ    = 4  + swing * 10;              // 4 – 5.5
-                            newVX     *= 0.35;
-                            timing  = 'defensive'; quality = 0.25 + swing;
+                            launchZ = 4 + swing * 10;              // 4 – 5.5
+                            newVX *= 0.35;
+                            timing = 'defensive'; quality = 0.25 + swing;
                         } else if (swing < 0.35) {
                             // ── 2–3 runs ──
-                            const t    = (swing - 0.14) / 0.21;
+                            const t = (swing - 0.14) / 0.21;
                             newVY_ball = 2.0 + t * 1.5;                // 2.0 – 3.5
-                            launchZ    = 8  + t * 8;                  // 8 – 16
-                            newVX     *= (0.55 + t * 0.20);
-                            timing  = 'good'; quality = 0.48 + t * 0.22;
+                            launchZ = 8 + t * 8;                  // 8 – 16
+                            newVX *= (0.55 + t * 0.20);
+                            timing = 'good'; quality = 0.48 + t * 0.22;
                         } else if (swing < 0.78) {
                             // ── FOUR territory ──
-                            const t    = (swing - 0.35) / 0.43;
+                            const t = (swing - 0.35) / 0.43;
                             newVY_ball = 2.5 + t * 2.0;                // 2.5 – 4.5
                             launchZ = 20 + t * 10; // 20 – 30
-                            newVX     *= (0.75 + t * 0.25);
-                            timing  = 'perfect'; quality = 0.72 + t * 0.15;
+                            newVX *= (0.75 + t * 0.25);
+                            timing = 'perfect'; quality = 0.72 + t * 0.15;
                         } else {
                             // ── SIX territory ──
-                            const t    = (swing - 0.78) / 0.22;
+                            const t = (swing - 0.78) / 0.22;
                             newVY_ball = 9.0 + t * 7.0;                // 9.0 – 16.0
-                            launchZ    = 28  + t * 15;                 // 28 – 43
-                            newVX     *= (1.0  + t * 0.30);
-                            timing  = 'perfect'; quality = 0.88 + t * 0.12;
+                            launchZ = 28 + t * 15;                 // 28 – 43
+                            newVX *= (1.0 + t * 0.30);
+                            timing = 'perfect'; quality = 0.88 + t * 0.12;
                         }
 
                         newVZ = zSign * launchZ;
@@ -310,26 +310,26 @@ export default class EnvironmentBall {
 
                     // Classify and emit
                     const classifier = window.shotClassifier || new ShotClassifier();
-                    const shotClass  = classifier.classify({
-                        velocity:     this.velocity,
-                        position:     this.position,
+                    const shotClass = classifier.classify({
+                        velocity: this.velocity,
+                        position: this.position,
                         handPosition: handPos,
-                        timing:       timing
+                        timing: timing
                     }, {
                         position: this.position,
                         velocity: this.velocity
                     });
 
                     EventBus.emit(EventBus.GAME_EVENTS.SHOT_PLAYED, {
-                        shotType:   shotClass.shotType,
-                        power:      shotClass.power,
-                        direction:  shotClass.direction,
+                        shotType: shotClass.shotType,
+                        power: shotClass.power,
+                        direction: shotClass.direction,
                         timing,
                         quality,
                         swingSpeed: swing,
                         edgeness,
-                        position:   this.position.clone(),
-                        velocity:   this.velocity.clone()
+                        position: this.position.clone(),
+                        velocity: this.velocity.clone()
                     });
 
                     const shotEmoji = this._getShotEmoji(shotClass.shotType);
@@ -501,45 +501,21 @@ export default class EnvironmentBall {
             this.cameraModule.resetToStance();
         }
 
-        if (autoBowl) {
-            // Freeze ball at bowler's hand
-            this.isBallReadyToBowl = false;
-            this.bowlingStartTime = null;
-            this.idealContactTime = null;
-            this.peakSwingSpeed = 0;
-            this.peakSwingTime = 0;
-
-            // Schedule auto-bowl after 3 seconds
-            this.bowlTimeout = setTimeout(() => {
-                const checkAndBowl = () => {
-                    if (window.gamePaused) {
-                        // Game is paused, check again in 500ms
-                        this.bowlTimeout = setTimeout(checkAndBowl, 500);
-                    } else {
-                        if (this.uiModule) {
-                            this.uiModule.hideTimingMeter();
-                        }
-                        this.isBallReadyToBowl = true;
-                        this.bowlingStartTime = Date.now();
-                        this.idealContactTime = this.bowlingStartTime + (29.4 / this.velocity.z) * 1000;
-                        this.peakSwingSpeed = 0;
-                        this.peakSwingTime = 0;
-                        this.bowlTimeout = null;
-                    }
-                };
-                checkAndBowl();
-            }, 3000);
-        } else {
-            // Immediate start
-            if (this.uiModule) {
-                this.uiModule.hideTimingMeter();
-            }
-            this.isBallReadyToBowl = true;
-            this.bowlingStartTime = null; // will be set on the next frame in the physics loop
-            this.idealContactTime = null;
-            this.peakSwingSpeed = 0;
-            this.peakSwingTime = 0;
+        if (this.uiModule) {
+            this.uiModule.hideTimingMeter();
         }
+
+        // Freeze ball if autoBowl is active (released by bowler reaching the crease)
+        this.isBallReadyToBowl = !autoBowl;
+        this.bowlingStartTime = null;
+        this.idealContactTime = null;
+        this.peakSwingSpeed = 0;
+        this.peakSwingTime = 0;
+
+        // Notify other modules that the ball has reset
+        EventBus.emit(EventBus.GAME_EVENTS.BALL_RESET, { autoBowl });
+
+
     }
 
     getTimingData() {

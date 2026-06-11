@@ -105,6 +105,7 @@
         import EnvironmentHand from './src/environment/hand.js?v=14';
         import EnvironmentBall from './src/environment/ball.js?v=14';
         import EnvironmentStadium from './src/environment/stadium.js?v=14'; 
+        import EnvironmentPlayers from './src/environment/players.js?v=14'; 
         
         // Upgraded Scoreboard UI Import
         import GameUI from './src/ui/scoreboard.js?v=14'; 
@@ -191,6 +192,10 @@
 
                 const ballModule = new EnvironmentBall(scene, lightingAssets.shadowGenerator);
                 ballModule.setup(handGroup, wicketsModule, uiModule, cameraModule);
+
+                // Initialize and mount the players (fielders, bowler, wicketkeeper)
+                const playersModule = new EnvironmentPlayers(scene, lightingAssets.shadowGenerator);
+                const playersPromise = playersModule.setup(ballModule);
 
                 gameEngineModule.startRenderLoop(scene, perfMonitor);
 
@@ -315,14 +320,14 @@
                     }
                 };
 
-                // Wait for 3D stadium meshes to compile and load fully
-                stadiumPromise.then(() => {
+                // Wait for 3D stadium meshes and players to compile and load fully
+                Promise.all([stadiumPromise, playersPromise]).then(() => {
                     showPlayButton();
                 }).catch((err) => {
-                    console.error("Failed to load stadium, starting fallback game:", err);
+                    console.error("Failed to load stadium or players, starting fallback game:", err);
                     const statusEl = document.getElementById("loadingStatus");
                     if (statusEl) {
-                        statusEl.innerText = "Error loading stadium. Starting game...";
+                        statusEl.innerText = "Error loading assets. Starting game...";
                         statusEl.style.color = "#ff3333";
                     }
                     setTimeout(() => {
