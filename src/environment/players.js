@@ -67,7 +67,7 @@ export default class EnvironmentPlayers {
         // console.log("Player Assets Loaded successfully.");
 
         // 1. Create the Wicketkeeper behind the batsman's stumps (Z = 8.2)
-        const keeperPos = new BABYLON.Vector3(0, 0, 9.8);
+        const keeperPos = new BABYLON.Vector3(0, 0, 12.0);
         const keeperRot = 0; // Faces towards bowler (looking down -Z)
         const keeperScale = new BABYLON.Vector3(1.15, 1.15, 1.15);
         this.createPlayerInstance("Wicketkeeper", "keeper", keeperPos, keeperRot, keeperScale);

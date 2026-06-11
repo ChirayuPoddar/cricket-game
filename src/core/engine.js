@@ -28,10 +28,12 @@ export class GameEngine {
         // Restore console.log immediately
         console.log = originalLog;
 
-        // Optimize resolution for high-DPI (Retina) displays to prevent massive GPU render overhead
-        if (window.devicePixelRatio > 1) {
-            this.engine.setHardwareScalingLevel(1.5);
-        }
+        // Render at native physical display resolution (Retina/High-DPI 1:1 pixel mapping)
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        this.engine.setHardwareScalingLevel(1.0 / devicePixelRatio);
+
+        // Enable 16x anisotropic filtering globally for crisp textures at all viewing angles
+        BABYLON.Texture.DefaultAnisotropicFilteringLevel = 16;
 
         this.setupResizeListener();
 

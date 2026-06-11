@@ -11,6 +11,9 @@ export default class EnvironmentSky {
     setup() {
         this.createSkyDome();
         this.applySkyMaterial();
+        
+        // Initial theme paint (Day settings by default)
+        this.applyTheme(true);
     }
 
     createSkyDome() {

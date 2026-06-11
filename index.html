@@ -87,28 +87,28 @@
 
     <script type="module">
         // DAY 1 QUICK WINS: New Architecture Modules
-        import ConfigManager from './src/core/ConfigManager.js?v=14';
-        import EventBus from './src/core/EventBus.js?v=14';
-        import PerformanceMonitor from './src/ui/PerformanceMonitor.js?v=14';
-        import ShotClassifier from './src/gameplay/ShotClassifier.js?v=14';
+        import ConfigManager from './src/core/ConfigManager.js?v=22';
+        import EventBus from './src/core/EventBus.js?v=22';
+        import PerformanceMonitor from './src/ui/PerformanceMonitor.js?v=22';
+        import ShotClassifier from './src/gameplay/ShotClassifier.js?v=22';
 
         // 1. Import Core Engine Architecture Modules
-        import { GameEngine } from './src/core/engine.js?v=14';
-        import { GameScene } from './src/core/scene.js?v=14';
+        import { GameEngine } from './src/core/engine.js?v=22';
+        import { GameScene } from './src/core/scene.js?v=22';
 
         // 2. Import All Environment/Scenery Modules
-        import EnvironmentCamera from './src/environment/camera.js?v=14';
-        import EnvironmentLights from './src/environment/lights.js?v=14';
-        import EnvironmentSky from './src/environment/sky.js?v=14';
-        import EnvironmentGround from './src/environment/ground.js?v=14';
-        import EnvironmentWickets from './src/environment/wickets.js?v=14';
-        import EnvironmentHand from './src/environment/hand.js?v=14';
-        import EnvironmentBall from './src/environment/ball.js?v=14';
-        import EnvironmentStadium from './src/environment/stadium.js?v=14'; 
-        import EnvironmentPlayers from './src/environment/players.js?v=14'; 
+        import EnvironmentCamera from './src/environment/camera.js?v=22';
+        import EnvironmentLights from './src/environment/lights.js?v=22';
+        import EnvironmentSky from './src/environment/sky.js?v=22';
+        import EnvironmentGround from './src/environment/ground.js?v=22';
+        import EnvironmentWickets from './src/environment/wickets.js?v=22';
+        import EnvironmentHand from './src/environment/hand.js?v=22';
+        import EnvironmentBall from './src/environment/ball.js?v=22';
+        import EnvironmentStadium from './src/environment/stadium.js?v=22'; 
+        import EnvironmentPlayers from './src/environment/players.js?v=22'; 
         
         // Upgraded Scoreboard UI Import
-        import GameUI from './src/ui/scoreboard.js?v=14'; 
+        import GameUI from './src/ui/scoreboard.js?v=22'; 
 
         window.isDayMode = true;
 
@@ -153,6 +153,10 @@
 
                 const skyModule = new EnvironmentSky(scene);
                 skyModule.setup();
+
+                // Apply initial theme settings immediately on load to prevent rendering inconsistencies
+                lightsModule.applyTheme(window.isDayMode);
+                skyModule.applyTheme(window.isDayMode);
 
                 const groundModule = new EnvironmentGround(scene);
                 groundModule.setup();

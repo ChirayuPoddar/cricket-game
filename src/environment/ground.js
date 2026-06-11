@@ -54,8 +54,12 @@ export default class EnvironmentGround {
         this.groundMesh.receiveShadows = true;
     }
     createPitch() {
-        this.pitchMesh = BABYLON.MeshBuilder.CreateGround("clayPitch", { width: 3, height: 25 }, this.scene);
+        // Stumps are at z = 8.2. Pitch starts at z = -12.5.
+        // Pitch length = 8.2 - (-12.5) = 20.7 meters.
+        // Center of pitch is at z = (-12.5 + 8.2) / 2 = -2.15.
+        this.pitchMesh = BABYLON.MeshBuilder.CreateGround("clayPitch", { width: 3, height: 20.7 }, this.scene);
         this.pitchMesh.position.y = 0.001; // Elevate slightly above grass to prevent texture flickering
+        this.pitchMesh.position.z = -2.15; // Shift to end exactly at the stumps
 
         const pitchMaterial = new BABYLON.StandardMaterial("pitchMat", this.scene);
         pitchMaterial.diffuseColor = new BABYLON.Color3(0.92, 0.85, 0.62); // Hard baked clay pitch tone
