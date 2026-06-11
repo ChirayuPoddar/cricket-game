@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>3D Cricket Game</title>
     <link rel="stylesheet" href="css/main.css">
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -83,32 +86,69 @@
     </div>
 
     <video id="webcamOverlay" autoplay playsinline></video>
+
+    <!-- Live Field Radar Overlay -->
+    <div id="fieldRadar" style="
+        position: fixed;
+        bottom: 215px; /* Positioned directly above the webcam overlay */
+        right: 20px;
+        width: 240px;
+        height: 275px;
+        background: rgba(10, 20, 40, 0.85);
+        border: 2px solid #00ff00;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
+        z-index: 9999;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    ">
+        <!-- Header -->
+        <div style="
+            background: rgba(0, 255, 0, 0.15);
+            padding: 6px 12px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.25);
+            font-size: 11px;
+            font-weight: 800;
+            color: #00ff00;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            text-align: center;
+            user-select: none;
+        ">
+            🛰️ Live Field Radar
+        </div>
+        <!-- Canvas -->
+        <canvas id="radarCanvas" width="240" height="240" style="background: transparent; display: block;"></canvas>
+    </div>
+
     <canvas id="renderCanvas"></canvas>
 
     <script type="module">
         // DAY 1 QUICK WINS: New Architecture Modules
-        import ConfigManager from './src/core/ConfigManager.js?v=22';
-        import EventBus from './src/core/EventBus.js?v=22';
-        import PerformanceMonitor from './src/ui/PerformanceMonitor.js?v=22';
-        import ShotClassifier from './src/gameplay/ShotClassifier.js?v=22';
+        import ConfigManager from './src/core/ConfigManager.js?v=46';
+        import EventBus from './src/core/EventBus.js?v=46';
+        import PerformanceMonitor from './src/ui/PerformanceMonitor.js?v=46';
+        import ShotClassifier from './src/gameplay/ShotClassifier.js?v=46';
 
         // 1. Import Core Engine Architecture Modules
-        import { GameEngine } from './src/core/engine.js?v=22';
-        import { GameScene } from './src/core/scene.js?v=22';
+        import { GameEngine } from './src/core/engine.js?v=46';
+        import { GameScene } from './src/core/scene.js?v=46';
 
         // 2. Import All Environment/Scenery Modules
-        import EnvironmentCamera from './src/environment/camera.js?v=22';
-        import EnvironmentLights from './src/environment/lights.js?v=22';
-        import EnvironmentSky from './src/environment/sky.js?v=22';
-        import EnvironmentGround from './src/environment/ground.js?v=22';
-        import EnvironmentWickets from './src/environment/wickets.js?v=22';
-        import EnvironmentHand from './src/environment/hand.js?v=22';
-        import EnvironmentBall from './src/environment/ball.js?v=22';
-        import EnvironmentStadium from './src/environment/stadium.js?v=22'; 
-        import EnvironmentPlayers from './src/environment/players.js?v=22'; 
+        import EnvironmentCamera from './src/environment/camera.js?v=46';
+        import EnvironmentLights from './src/environment/lights.js?v=46';
+        import EnvironmentSky from './src/environment/sky.js?v=46';
+        import EnvironmentGround from './src/environment/ground.js?v=46';
+        import EnvironmentWickets from './src/environment/wickets.js?v=46';
+        import EnvironmentHand from './src/environment/hand.js?v=46';
+        import EnvironmentBall from './src/environment/ball.js?v=46';
+        import EnvironmentStadium from './src/environment/stadium.js?v=46'; 
+        import EnvironmentPlayers from './src/environment/players.js?v=46'; 
         
         // Upgraded Scoreboard UI Import
-        import GameUI from './src/ui/scoreboard.js?v=22'; 
+        import GameUI from './src/ui/scoreboard.js?v=46'; 
 
         window.isDayMode = true;
 
@@ -200,6 +240,11 @@
                 // Initialize and mount the players (fielders, bowler, wicketkeeper)
                 const playersModule = new EnvironmentPlayers(scene, lightingAssets.shadowGenerator);
                 const playersPromise = playersModule.setup(ballModule);
+
+                // Register update hook for the Live Field Radar
+                scene.onBeforeRenderObservable.add(() => {
+                    updateRadar(playersModule, ballModule);
+                });
 
                 gameEngineModule.startRenderLoop(scene, perfMonitor);
 
@@ -364,6 +409,143 @@
                 } catch (btnErr) {
                     console.error("Failed to show recovery play button:", btnErr);
                 }
+            }
+        }
+
+        // Top-down live field radar drawer
+        function updateRadar(playersModule, ballModule) {
+            const canvas = document.getElementById("radarCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const boundaryRadius = 90; // Pixels representing 60 meters
+            const scale = boundaryRadius / 60.0; // Scale factor (px/m)
+
+            // Draw radar range rings
+            ctx.strokeStyle = "rgba(0, 255, 0, 0.12)";
+            ctx.lineWidth = 1;
+            for (let r = 30; r <= 90; r += 30) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Crosshairs
+            ctx.strokeStyle = "rgba(0, 255, 0, 0.1)";
+            ctx.beginPath();
+            ctx.moveTo(centerX - 95, centerY);
+            ctx.lineTo(centerX + 95, centerY);
+            ctx.moveTo(centerX, centerY - 95);
+            ctx.lineTo(centerX, centerY + 95);
+            ctx.stroke();
+
+            // 30-yard inner circle (27.4m)
+            const innerRadius = 27.4 * scale;
+            ctx.strokeStyle = "rgba(0, 255, 0, 0.25)";
+            ctx.setLineDash([3, 4]);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Outer boundary circle
+            ctx.strokeStyle = "#00ff00";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, boundaryRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Draw Pitch (Burlywood texture mapping) - Bowler at top, batter at bottom
+            const pitchW = 3.05 * scale;
+            const pitchL = 20.12 * scale;
+            // Bowler end is at Z = -12.0 (top on canvas), Batter end is at Z = 8.12 (bottom on canvas)
+            const pitchTopZ = -12.0;
+            const pitchTop = centerY + pitchTopZ * scale;
+            ctx.fillStyle = "rgba(240, 220, 180, 0.3)";
+            ctx.fillRect(centerX - pitchW / 2, pitchTop, pitchW, pitchL);
+
+            // Draw wickets (Bowler end Z = -11.92 at top, Batter end Z = 8.2 at bottom)
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(centerX - 3, centerY + 8.2 * scale - 1, 6, 2);
+            ctx.fillRect(centerX - 3, centerY + (-11.92) * scale - 1, 6, 2);
+
+            // Sonar radar sweep animation
+            const time = Date.now() * 0.0012;
+            const sweepAngle = time % (Math.PI * 2);
+            const grad = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, boundaryRadius);
+            grad.addColorStop(0, "rgba(0, 255, 0, 0.15)");
+            grad.addColorStop(1, "rgba(0, 255, 0, 0)");
+            
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, boundaryRadius, sweepAngle - 0.25, sweepAngle, false);
+            ctx.closePath();
+            ctx.fill();
+
+            // Sweep arm line
+            ctx.strokeStyle = "rgba(0, 255, 0, 0.35)";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX + Math.cos(sweepAngle) * boundaryRadius, centerY + Math.sin(sweepAngle) * boundaryRadius);
+            ctx.stroke();
+
+            // Draw players
+            if (playersModule && playersModule.players) {
+                playersModule.players.forEach(player => {
+                    if (!player.root) return;
+                    const pos = player.root.position;
+                    
+                    const pX = centerX - pos.x * scale;
+                    const pY = centerY + pos.z * scale;
+
+                    let dotColor = "#ffff00"; // default fielder
+                    let dotSize = 3.5;
+                    
+                    if (player.type === "keeper") {
+                        dotColor = "#ffa500";
+                        dotSize = 4.5;
+                    } else if (player.type === "bowler") {
+                        dotColor = "#00ffff";
+                        dotSize = 4.5;
+                    } else if (player.type === "umpire") {
+                        dotColor = "#ffffff";
+                        dotSize = 4.0;
+                    }
+
+                    // Draw player dot
+                    ctx.shadowBlur = 3;
+                    ctx.shadowColor = dotColor;
+                    ctx.fillStyle = dotColor;
+                    ctx.beginPath();
+                    ctx.arc(pX, pY, dotSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+            }
+
+            // Draw ball (pulsing red dot)
+            if (ballModule && ballModule.ballMesh) {
+                const bPos = ballModule.ballMesh.position;
+                const bX = centerX - bPos.x * scale;
+                const bY = centerY + bPos.z * scale;
+
+                const pulse = 1.5 + Math.sin(Date.now() * 0.015) * 0.7;
+                
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = "#ff3333";
+                ctx.fillStyle = "#ff3333";
+                ctx.beginPath();
+                ctx.arc(bX, bY, 3.0 + pulse, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
             }
         }
 

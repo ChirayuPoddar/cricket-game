@@ -20,14 +20,14 @@ export default class ConfigManager {
    */
   static async load() {
     if (this.#isLoaded) return;
-    
+
     try {
       const response = await fetch(this.#configPath);
       if (!response.ok) {
         console.error(`Failed to load config: ${response.status} ${response.statusText}`);
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       this.#config = await response.json();
       this.#isLoaded = true;
       // console.log('✓ ConfigManager loaded successfully', this.#config);
@@ -65,7 +65,7 @@ export default class ConfigManager {
         hard: { gravityScale: 1.2, speedScale: 1.3 }
       }
     };
-    
+
     this.#isLoaded = true;
     console.warn('⚠️  ConfigManager using default values (config file not found)');
   }
@@ -154,10 +154,10 @@ export default class ConfigManager {
 
     const oldValue = obj[lastKey];
     obj[lastKey] = value;
-    
+
     // console.log(`Config updated: ${path} = ${value} (was: ${oldValue})`);
     this.#notifyObservers('changed', { path, oldValue, newValue: value });
-    
+
     return true;
   }
 
@@ -168,7 +168,7 @@ export default class ConfigManager {
    */
   static onChange(callback) {
     this.#observers.push(callback);
-    
+
     return () => {
       const index = this.#observers.indexOf(callback);
       if (index > -1) {

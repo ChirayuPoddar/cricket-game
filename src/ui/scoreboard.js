@@ -22,7 +22,7 @@ export default class GameUI {
         this.createDOMElements(onToggleMode);
         this.gameStartTime = Date.now();
         this.updateDisplay();
-        
+
         // Subscribe to EventBus events for analytics and feedback
         this.setupEventListeners();
     }
@@ -155,7 +155,7 @@ export default class GameUI {
 
     addRuns(amount) {
         if (window.gamePaused) return;
-        
+
         this.runs += amount;
         this.totalBalls += 1;
 
@@ -168,7 +168,7 @@ export default class GameUI {
         } else if (amount === 0) {
             this.dotBalls += 1;
         }
-        
+
         this.currentOverBalls.push(amount);
         this.updateDisplay();
         this.checkOverEnd();
@@ -176,11 +176,11 @@ export default class GameUI {
 
     registerWicket() {
         if (window.gamePaused) return;
-        
+
         this.wickets += 1;
         this.totalBalls += 1;
         // Removed center alert in favor of unified top-center meter
-        
+
         this.currentOverBalls.push('W');
         this.updateDisplay();
         this.checkOverEnd();
@@ -190,7 +190,7 @@ export default class GameUI {
         if (window.gamePaused) return;
         this.totalBalls += 1;
         this.dotBalls += 1;
-        
+
         this.currentOverBalls.push(0);
         this.updateDisplay();
         this.checkOverEnd();
@@ -531,11 +531,11 @@ export default class GameUI {
                 // 5. Draw stumps/wickets icons at batsman and bowler crease
                 ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
                 ctx.lineWidth = 1;
-                
+
                 // Batsman crease wickets (downside)
                 ctx.beginPath();
                 ctx.moveTo(cx - 3, cy + 30); ctx.lineTo(cx - 3, cy + 24);
-                ctx.moveTo(cx, cy + 30);     ctx.lineTo(cx, cy + 24);
+                ctx.moveTo(cx, cy + 30); ctx.lineTo(cx, cy + 24);
                 ctx.moveTo(cx + 3, cy + 30); ctx.lineTo(cx + 3, cy + 24);
                 ctx.moveTo(cx - 4, cy + 24); ctx.lineTo(cx + 4, cy + 24);
                 ctx.stroke();
@@ -543,7 +543,7 @@ export default class GameUI {
                 // Bowler crease wickets (topside)
                 ctx.beginPath();
                 ctx.moveTo(cx - 3, cy - 30); ctx.lineTo(cx - 3, cy - 24);
-                ctx.moveTo(cx, cy - 30);     ctx.lineTo(cx, cy - 24);
+                ctx.moveTo(cx, cy - 30); ctx.lineTo(cx, cy - 24);
                 ctx.moveTo(cx + 3, cy - 30); ctx.lineTo(cx + 3, cy - 24);
                 ctx.moveTo(cx - 4, cy - 24); ctx.lineTo(cx + 4, cy - 24);
                 ctx.stroke();
@@ -559,7 +559,7 @@ export default class GameUI {
                 ctx.font = "bold 9px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                
+
                 // Sides
                 ctx.fillText("LEG SIDE", cx - 95, cy);
                 ctx.fillText("OFF SIDE", cx + 95, cy);

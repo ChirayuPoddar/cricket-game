@@ -99,6 +99,7 @@ button:active {
     z-index: 1000;
 }
 
+
 /* Connection status indicator */
 #connectionStatus {
     position: absolute;

@@ -10,6 +10,7 @@ export default class EnvironmentWickets {
         this.STUMP_DIAMETER = 0.04;
         this.STUMP_HEIGHT = 0.71;
         this.Z_POSITION = 8.2; // MOVED: Now sits right behind the batsman's guard line
+        this.BOWLER_Z_POSITION = -11.92; // Bowler side stumps
         this.STUMP_SPACING = 0.06;
 
         this.leftBail = null;
@@ -41,6 +42,7 @@ export default class EnvironmentWickets {
     }
 
     createStumps() {
+        // Batting end stumps
         for (let i = -1; i <= 1; i++) {
             const stump = BABYLON.MeshBuilder.CreateCylinder("stump_" + i, {
                 diameterTop: this.STUMP_DIAMETER,
@@ -55,6 +57,22 @@ export default class EnvironmentWickets {
                 this.shadowGenerator.addShadowCaster(stump);
             }
         }
+
+        // Bowler end stumps
+        for (let i = -1; i <= 1; i++) {
+            const stump = BABYLON.MeshBuilder.CreateCylinder("bowler_stump_" + i, {
+                diameterTop: this.STUMP_DIAMETER,
+                diameterBottom: this.STUMP_DIAMETER,
+                height: this.STUMP_HEIGHT
+            }, this.scene);
+
+            stump.position = new BABYLON.Vector3(i * this.STUMP_SPACING, this.STUMP_HEIGHT / 2, this.BOWLER_Z_POSITION);
+            stump.material = this.stumpMaterial;
+
+            if (this.shadowGenerator) {
+                this.shadowGenerator.addShadowCaster(stump);
+            }
+        }
     }
 
     createBails() {
@@ -62,6 +80,7 @@ export default class EnvironmentWickets {
         const bailLength = 0.11;
         const bailYPosition = this.STUMP_HEIGHT + (bailDiameter / 2);
 
+        // Batting end bails
         this.leftBail = BABYLON.MeshBuilder.CreateCylinder("leftBail", {
             diameterTop: bailDiameter,
             diameterBottom: bailDiameter,
@@ -80,9 +99,30 @@ export default class EnvironmentWickets {
         this.rightBail.position = new BABYLON.Vector3(0.03, bailYPosition, this.Z_POSITION);
         this.rightBail.material = this.bailMaterial;
 
+        // Bowler end bails
+        const bowlerLeftBail = BABYLON.MeshBuilder.CreateCylinder("bowlerLeftBail", {
+            diameterTop: bailDiameter,
+            diameterBottom: bailDiameter,
+            height: bailLength
+        }, this.scene);
+        bowlerLeftBail.rotation.z = Math.PI / 2;
+        bowlerLeftBail.position = new BABYLON.Vector3(-0.03, bailYPosition, this.BOWLER_Z_POSITION);
+        bowlerLeftBail.material = this.bailMaterial;
+
+        const bowlerRightBail = BABYLON.MeshBuilder.CreateCylinder("bowlerRightBail", {
+            diameterTop: bailDiameter,
+            diameterBottom: bailDiameter,
+            height: bailLength
+        }, this.scene);
+        bowlerRightBail.rotation.z = Math.PI / 2;
+        bowlerRightBail.position = new BABYLON.Vector3(0.03, bailYPosition, this.BOWLER_Z_POSITION);
+        bowlerRightBail.material = this.bailMaterial;
+
         if (this.shadowGenerator) {
             this.shadowGenerator.addShadowCaster(this.leftBail);
             this.shadowGenerator.addShadowCaster(this.rightBail);
+            this.shadowGenerator.addShadowCaster(bowlerLeftBail);
+            this.shadowGenerator.addShadowCaster(bowlerRightBail);
         }
 
         this.bailsPhysics.left.pos = this.leftBail.position.clone();

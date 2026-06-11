@@ -4,10 +4,10 @@ export default class EnvironmentPlayers {
     constructor(scene, shadowGenerator) {
         this.scene = scene;
         this.shadowGenerator = shadowGenerator;
-        
+
         this.ballModule = null;
         this.players = []; // Array of player objects: { name, type, root, anims: { idle, run }, startPos, startRotY }
-        
+
         // Master assets container caches
         this.botContainer = null;
         this.idleContainer = null;
@@ -20,13 +20,21 @@ export default class EnvironmentPlayers {
         // Bowler run-up variables
         this.bowlerObj = null;
         this.bowlerState = 'idle'; // 'idle', 'waiting_runup', 'running_up', 'bowled'
-        this.bowlerRunStart = new BABYLON.Vector3(0, 0, -28.5);
-        this.bowlerCrease = new BABYLON.Vector3(0, 0, -22.0);
+        this.bowlerRunStart = new BABYLON.Vector3(0.6, 0, -18.5);
+        this.bowlerCrease = new BABYLON.Vector3(0.6, 0, -12.0);
         this.bowlerSpeed = 3.25; // Speed during run-up (m/s)
         this.bowlerRunTimer = 0;
+        this.deliveryTimer = 0;
+        this.hasReleasedBall = false;
+        this.bowlerRightArmNode = null;
+        this.bowlerRightForeArmNode = null;
+        this.bowlerHandNode = null;
+        this.bowlerRightArmDefaultRot = null;
+        this.bowlerRightForeArmDefaultRot = null;
+        this.bowlerHandDefaultRot = null;
 
         // Fielding chase variables
-        this.activeChaser = null;
+        this.activeChasers = [];
         this.chaseSpeed = 7.5; // Fielder sprint speed (m/s)
         this.isBallInPlay = false;
         this.hasFielderFielded = false;
@@ -36,15 +44,15 @@ export default class EnvironmentPlayers {
         // Fielding placement for Off Spinner (in Death Overs) as per diagram:
         // Left = OFF side (X > 0), Right = LEG side (X < 0)
         this.fielderPositions = [
-            { name: "Short Third Man", pos: new BABYLON.Vector3(6.0, 0, 13.0) },
-            { name: "Backward Point",  pos: new BABYLON.Vector3(13.0, 0, 8.5) },
-            { name: "Deep Point",      pos: new BABYLON.Vector3(32.0, 0, 8.5) }, // Position 2
-            { name: "Extra Cover",     pos: new BABYLON.Vector3(9.0, 0, -4.0) },
-            { name: "Long Off",        pos: new BABYLON.Vector3(12.0, 0, -30.0) },
-            { name: "Long On",         pos: new BABYLON.Vector3(-12.0, 0, -30.0) },
-            { name: "Deep Mid Wicket", pos: new BABYLON.Vector3(-32.0, 0, -4.0) },
-            { name: "Square Leg",      pos: new BABYLON.Vector3(-13.0, 0, 7.4) }, // Position 1
-            { name: "Short Fine Leg",  pos: new BABYLON.Vector3(-6.0, 0, 13.0) }
+            { name: "Mid Off",         pos: new BABYLON.Vector3(15.0, 0, -15.0) },
+            { name: "Backward Point",  pos: new BABYLON.Vector3(19.5, 0, 12.75) },
+            { name: "Deep Point",      pos: new BABYLON.Vector3(48.0, 0, 12.75) }, // Position 2
+            { name: "Extra Cover",     pos: new BABYLON.Vector3(13.5, 0, -6.0) },
+            { name: "Long Off",        pos: new BABYLON.Vector3(18.0, 0, -45.0) },
+            { name: "Long On",         pos: new BABYLON.Vector3(-18.0, 0, -45.0) },
+            { name: "Deep Mid Wicket", pos: new BABYLON.Vector3(-48.0, 0, -6.0) },
+            { name: "Square Leg",      pos: new BABYLON.Vector3(-19.5, 0, 11.1) }, // Position 1
+            { name: "Mid On",          pos: new BABYLON.Vector3(-15.0, 0, -15.0) }
         ];
     }
 
@@ -105,10 +113,10 @@ export default class EnvironmentPlayers {
 
         // Register update loop
         this.scene.onBeforeRenderObservable.add(() => this.update());
-        
+
         // Initial reset to sync positions
         this.resetPlayersToStart();
-        
+
         // Start bowler in runup wait state for the very first ball!
         if (this.bowlerObj) {
             this.bowlerState = 'waiting_runup';
@@ -122,10 +130,10 @@ export default class EnvironmentPlayers {
 
         // Instantiate meshes and skeleton
         const instance = this.botContainer.instantiateModelsToScene(nameProvider, true, { doNotBindPlayPen: true });
-        
+
         // Create a single parent TransformNode anchor for this player instance
         const playerAnchor = new BABYLON.TransformNode("player_" + instanceId, this.scene);
-        
+
         // Parent all root nodes of the instantiated model to the playerAnchor
         instance.rootNodes.forEach(node => {
             node.setParent(playerAnchor);
@@ -140,7 +148,7 @@ export default class EnvironmentPlayers {
         // Auto-calculate model height by transforming child bounding box minimum/maximum into anchor space
         let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
         let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
-        
+
         playerAnchor.getChildMeshes().forEach(mesh => {
             mesh.computeWorldMatrix(true);
             const boundingInfo = mesh.getBoundingInfo();
@@ -170,6 +178,26 @@ export default class EnvironmentPlayers {
         if (name === "Bowler") {
             this.bowlerRunStart.y = verticalOffset;
             this.bowlerCrease.y = verticalOffset;
+
+            // Temporarily assign a mock bowler object to allow bone lookup methods to find the nodes on playerAnchor
+            this.bowlerObj = { root: playerAnchor };
+
+            // Cache the default bind-pose rotations of the right arm, forearm and hand
+            const arm = this.getBowlerRightArmNode();
+            if (arm) {
+                this.bowlerRightArmDefaultRot = arm.rotationQuaternion ? arm.rotationQuaternion.clone() : BABYLON.Quaternion.Identity();
+            }
+            const foreArm = this.getBowlerRightForeArmNode();
+            if (foreArm) {
+                this.bowlerRightForeArmDefaultRot = foreArm.rotationQuaternion ? foreArm.rotationQuaternion.clone() : BABYLON.Quaternion.Identity();
+            }
+            this.getBowlerHandPosition(); // Populates bowlerHandNode
+            if (this.bowlerHandNode) {
+                this.bowlerHandDefaultRot = this.bowlerHandNode.rotationQuaternion ? this.bowlerHandNode.rotationQuaternion.clone() : BABYLON.Quaternion.Identity();
+            }
+
+            // Clean up mock (setup will assign the real playerObj)
+            this.bowlerObj = null;
         }
 
 
@@ -179,6 +207,8 @@ export default class EnvironmentPlayers {
             if (this.shadowGenerator) {
                 this.shadowGenerator.addShadowCaster(mesh);
             }
+            // Prevent frustum culling when bones animate mesh components out of bounding box
+            mesh.alwaysSelectAsActiveMesh = true;
         });
 
         // Retarget Animations from separate animation containers to our grouped hierarchy bones
@@ -193,6 +223,7 @@ export default class EnvironmentPlayers {
             name,
             type,
             root: playerAnchor,
+            skeleton: instance.skeletons[0],
             anims: {
                 idle: idleAnim,
                 run: runAnim
@@ -214,14 +245,14 @@ export default class EnvironmentPlayers {
 
     retargetAnimationGroup(sourceAnimGroup, clonedRootNode, instanceId) {
         const newGroup = new BABYLON.AnimationGroup(sourceAnimGroup.name + "_" + instanceId, this.scene);
-        
+
         // Map child nodes of clonedRootNode by their original name (stripping instance suffix)
         const nodeMap = new Map();
         const suffix = "_" + instanceId;
-        
+
         const mapNode = (node) => {
-            const originalName = node.name.endsWith(suffix) 
-                ? node.name.slice(0, -suffix.length) 
+            const originalName = node.name.endsWith(suffix)
+                ? node.name.slice(0, -suffix.length)
                 : node.name;
             nodeMap.set(originalName, node);
             node.getChildren().forEach(mapNode);
@@ -283,15 +314,30 @@ export default class EnvironmentPlayers {
             player.currentRotY = player.startRotY;
         });
 
-        this.activeChaser = null;
+        this.activeChasers = [];
         this.isBallInPlay = false;
         this.hasFielderFielded = false;
 
-        // Reset Bowler state machine
+        // Reset Bowler state machine and restore manual bone rotations to default bind pose
         if (this.bowlerObj) {
             this.bowlerState = 'idle';
             this.bowlerObj.root.position.copyFrom(this.bowlerRunStart);
             this.bowlerObj.root.rotation.set(this.MODEL_ROTATION_X, this.bowlerObj.startRotY + this.MODEL_ROTATION_OFFSET, 0);
+
+            const arm = this.getBowlerRightArmNode();
+            if (arm && this.bowlerRightArmDefaultRot) {
+                arm.rotationQuaternion = this.bowlerRightArmDefaultRot.clone();
+            }
+            const foreArm = this.getBowlerRightForeArmNode();
+            if (foreArm && this.bowlerRightForeArmDefaultRot) {
+                foreArm.rotationQuaternion = this.bowlerRightForeArmDefaultRot.clone();
+            }
+            if (this.bowlerHandNode && this.bowlerHandDefaultRot) {
+                this.bowlerHandNode.rotationQuaternion = this.bowlerHandDefaultRot.clone();
+            }
+            if (this.bowlerObj.skeleton) {
+                this.bowlerObj.skeleton.computeAbsoluteTransforms();
+            }
         }
     }
 
@@ -309,15 +355,15 @@ export default class EnvironmentPlayers {
         // 3. FORCE PLAYER HEIGHT CONSTRAINTS (Prevent ground-sinking during run cycles)
         this.players.forEach(player => {
             let targetY = player.startPos.y;
-            
+
             // Check if this player is currently in a running state
-            const isRunning = (player === this.activeChaser && this.isBallInPlay && !this.hasFielderFielded) ||
-                            (player.type === 'bowler' && this.bowlerState === 'running_up');
-            
+            const isRunning = (this.activeChasers.includes(player) && this.isBallInPlay && !this.hasFielderFielded) ||
+                (player.type === 'bowler' && this.bowlerState === 'running_up');
+
             if (isRunning) {
                 targetY += 0.08; // Lift slightly by 8cm when running to counteract animation leg extension clipping
             }
-            
+
             player.root.position.y = targetY;
         });
     }
@@ -344,7 +390,7 @@ export default class EnvironmentPlayers {
                 break;
 
             case 'running_up':
-                // Move bowler forward towards the crease (Z = -22.0)
+                // Move bowler forward towards the crease (Z = -12.0)
                 const currentPos = bowler.root.position;
                 const distanceToCrease = this.bowlerCrease.z - currentPos.z;
 
@@ -353,20 +399,70 @@ export default class EnvironmentPlayers {
                     // Slightly sway on X for a realistic sprint wobble
                     currentPos.x = this.bowlerRunStart.x + Math.sin(Date.now() * 0.015) * 0.08;
                 } else {
-                    // Reached crease: Transition to bowled state
+                    // Reached crease: Transition to bowling_delivery state
                     currentPos.copyFrom(this.bowlerCrease);
-                    this.bowlerState = 'bowled';
+                    this.bowlerState = 'bowling_delivery';
+                    this.deliveryTimer = 0;
+                    this.hasReleasedBall = false;
                     bowler.anims.run.stop();
-                    bowler.anims.idle.start(true, 1.0); // Reset to ready stance
+                }
+                break;
 
-                    // Release the ball and initialize its flight timing parameters
+            case 'bowling_delivery':
+                this.deliveryTimer += deltaTime;
+                const duration = 0.45; // 0.45 seconds arm swing
+                const t = Math.min(1.0, this.deliveryTimer / duration);
+
+                const rightArmNode = this.getBowlerRightArmNode();
+                const rightForeArmNode = this.getBowlerRightForeArmNode();
+
+                // Straighten elbow to keep arm fully stretched (using default bind pose rotation)
+                if (rightForeArmNode && this.bowlerRightForeArmDefaultRot) {
+                    rightForeArmNode.rotationQuaternion.copyFrom(this.bowlerRightForeArmDefaultRot);
+                }
+
+                // Force wrist to straighten as well (using default bind pose rotation)
+                this.getBowlerHandPosition(); // Populates this.bowlerHandNode
+                if (this.bowlerHandNode && this.bowlerHandDefaultRot) {
+                    this.bowlerHandNode.rotationQuaternion.copyFrom(this.bowlerHandDefaultRot);
+                }
+
+                if (rightArmNode) {
+                    // phi ranges from -Math.PI * 0.7 (pointing back/down) to Math.PI * 0.9 (follow through)
+                    // Capped arm swing progress at t = 0.70 (ball release angle) to prevent the hand/arm from rotating past the chest/body
+                    const armT = Math.min(0.70, t);
+                    const phi = -Math.PI * 0.7 + armT * Math.PI * 1.6;
+
+                    // Reset to default T-pose rotation (T-pose, pointing along +X)
+                    rightArmNode.rotationQuaternion = BABYLON.Quaternion.Identity();
+
+                    // 1. Swing arm down to point along -Y (using world Z-axis)
+                    rightArmNode.rotate(BABYLON.Axis.Z, -Math.PI / 2, BABYLON.Space.WORLD);
+
+                    // 2. Rotate arm around world X-axis to swing in YZ circle (perpendicular to the throw)
+                    rightArmNode.rotate(BABYLON.Axis.X, phi, BABYLON.Space.WORLD);
+                }
+
+                // Crucial fix: Sync bone absolute transforms to the skeleton to prevent the skinned mesh from disappearing or trailing
+                if (bowler.skeleton) {
+                    bowler.skeleton.computeAbsoluteTransforms();
+                }
+
+                // Release the ball at 70% of the arm swing (arm pointing forward/down)
+                if (t >= 0.70 && !this.hasReleasedBall) {
+                    this.hasReleasedBall = true;
                     if (this.ballModule) {
                         this.ballModule.isBallReadyToBowl = true;
                         this.ballModule.bowlingStartTime = Date.now();
-                        this.ballModule.idealContactTime = this.ballModule.bowlingStartTime + (29.4 / this.ballModule.velocity.z) * 1000;
+                        this.ballModule.idealContactTime = this.ballModule.bowlingStartTime + (19.4 / this.ballModule.velocity.z) * 1000;
                         this.ballModule.peakSwingSpeed = 0;
                         this.ballModule.peakSwingTime = 0;
                     }
+                }
+
+                if (t >= 1.0) {
+                    this.bowlerState = 'bowled';
+                    bowler.anims.idle.start(true, 1.0); // Reset to ready stance
                 }
                 break;
 
@@ -374,6 +470,17 @@ export default class EnvironmentPlayers {
                 // Standing at crease, watching the shot
                 this.faceTarget(bowler.root, this.ballModule.ballMesh.position);
                 break;
+        }
+
+        // While the bowler is preparing or running up, hold the ball in their hand
+        if (this.bowlerState === 'idle' || this.bowlerState === 'waiting_runup' || this.bowlerState === 'running_up' || (this.bowlerState === 'bowling_delivery' && !this.hasReleasedBall)) {
+            const handPos = this.getBowlerHandPosition();
+            if (handPos && this.ballModule) {
+                this.ballModule.position.copyFrom(handPos);
+                if (this.ballModule.ballMesh) {
+                    this.ballModule.ballMesh.position.copyFrom(handPos);
+                }
+            }
         }
     }
 
@@ -384,34 +491,53 @@ export default class EnvironmentPlayers {
 
         // If the ball has been hit and is active in the field
         if (this.isBallInPlay && !this.hasFielderFielded) {
-            
-            // Choose/Identify active chaser (nearest fielder to the ball on XZ plane)
-            if (!this.activeChaser) {
-                let minDistance = Infinity;
-                let nearestFielder = null;
 
-                this.players.forEach(player => {
-                    if (player.type !== 'fielder') return;
-
-                    const dist = BABYLON.Vector3.Distance(player.root.position, ballPos);
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        nearestFielder = player;
+            // Dynamically evaluate chaser list on every frame to support multiple chasing players
+            const fieldersWithDist = this.players
+                .filter(p => {
+                    if (p.type === 'fielder') return true;
+                    if (p.type === 'keeper') return true;
+                    if (p.type === 'bowler') {
+                        // Bowler can chase only if not currently running up or performing delivery release swing
+                        return this.bowlerState !== 'running_up' && this.bowlerState !== 'bowling_delivery';
                     }
-                });
+                    return false;
+                })
+                .map(p => ({ player: p, dist: BABYLON.Vector3.Distance(p.root.position, ballPos) }))
+                .sort((a, b) => a.dist - b.dist);
 
-                if (nearestFielder) {
-                    this.activeChaser = nearestFielder;
-                    this.activeChaser.anims.idle.stop();
-                    this.activeChaser.anims.run.start(true, 1.15); // Fast sprint anim
+            let newChasers = [];
+            if (fieldersWithDist.length > 0) {
+                const minDist = fieldersWithDist[0].dist;
+                newChasers.push(fieldersWithDist[0].player);
+
+                // If distance is nearly the same (difference <= 1.5 meters), activate up to 2 fielders
+                if (fieldersWithDist.length > 1 && (fieldersWithDist[1].dist - minDist) <= 1.5) {
+                    newChasers.push(fieldersWithDist[1].player);
                 }
             }
 
-            // Move the active chaser towards the ball
-            if (this.activeChaser) {
-                const chaserRoot = this.activeChaser.root;
-                
-                // Target spot is ball's position projected on chaser height plane
+            // Sync animation states for changed chasers
+            this.activeChasers.forEach(oldChaser => {
+                if (!newChasers.includes(oldChaser)) {
+                    oldChaser.anims.run.stop();
+                    oldChaser.anims.idle.start(true, 1.0);
+                }
+            });
+
+            newChasers.forEach(newChaser => {
+                if (!this.activeChasers.includes(newChaser)) {
+                    newChaser.anims.idle.stop();
+                    newChaser.anims.run.start(true, 1.15); // Fast sprint anim
+                }
+            });
+
+            this.activeChasers = newChasers;
+
+            // Move all active chasers towards the ball
+            let ballReached = false;
+            this.activeChasers.forEach(chaser => {
+                const chaserRoot = chaser.root;
                 const targetSpot = new BABYLON.Vector3(ballPos.x, chaserRoot.position.y, ballPos.z);
                 const toBall = targetSpot.subtract(chaserRoot.position);
                 const distance = toBall.length();
@@ -424,26 +550,34 @@ export default class EnvironmentPlayers {
                     const moveDir = toBall.normalize();
                     chaserRoot.position.addInPlace(moveDir.scale(this.chaseSpeed * deltaTime));
                 } else {
-                    // FIELDED SUCCESS: Fielder has reached the ball!
-                    this.hasFielderFielded = true;
-                    this.activeChaser.anims.run.stop();
-                    this.activeChaser.anims.idle.start(true, 1.0);
+                    ballReached = true;
+                }
+            });
 
-                    // Stop the ball instantly to freeze runs calculation
-                    this.ballModule.velocity.set(0, 0, 0);
-                    // Force the ball down to ground height
-                    this.ballModule.position.y = this.ballModule.BALL_DIAMETER / 2;
+            if (ballReached) {
+                // FIELDED SUCCESS: One of the fielders has reached the ball!
+                this.hasFielderFielded = true;
 
-                    if (this.ballModule.uiModule) {
-                        this.ballModule.uiModule.showAnnouncement("FIELDED! 🖐️", "#00FFFF");
-                    }
+                this.activeChasers.forEach(chaser => {
+                    chaser.anims.run.stop();
+                    chaser.anims.idle.start(true, 1.0);
+                });
+                this.activeChasers = [];
+
+                // Stop the ball instantly to freeze runs calculation
+                this.ballModule.velocity.set(0, 0, 0);
+                // Force the ball down to ground height
+                this.ballModule.position.y = this.ballModule.BALL_DIAMETER / 2;
+
+                if (this.ballModule.uiModule) {
+                    this.ballModule.uiModule.showAnnouncement("FIELDED! 🖐️", "#00FFFF");
                 }
             }
 
             // Make other fielders & keeper rotate to face the ball alertly
             this.players.forEach(player => {
-                if (player === this.activeChaser) return;
-                
+                if (this.activeChasers.includes(player)) return;
+
                 // Face the ball's current location
                 this.faceTarget(player.root, ballPos);
             });
@@ -451,10 +585,11 @@ export default class EnvironmentPlayers {
             // Check for Catch Dismissal:
             // Ball has been hit, is in the air, and has NOT touched the ground yet
             if (!this.ballModule.hasHitGroundAfterStroke && ballPos.y > 0.1 && ballPos.y < 2.0) {
-                
-                // Check if any fielder or keeper is close enough in 3D space to catch it
+
                 this.players.forEach(player => {
-                    if (player.type === 'bowler') return; // Bowler is bowling and watching
+                    if (player.type === 'bowler' && (this.bowlerState === 'running_up' || this.bowlerState === 'bowling_delivery')) {
+                        return; // Bowler cannot catch while running up or delivering
+                    }
                     if (this.hasFielderFielded) return;
 
                     // horizontal distance check (on the grass)
@@ -462,19 +597,20 @@ export default class EnvironmentPlayers {
                         new BABYLON.Vector2(player.root.position.x, player.root.position.z),
                         new BABYLON.Vector2(ballPos.x, ballPos.z)
                     );
-                    
+
                     // vertical height reach check (under player height limit)
                     const isWithinReachHeight = ballPos.y >= 0.2 && ballPos.y <= 2.2;
 
                     if (distXZ < 0.95 && isWithinReachHeight) {
                         // CATCH TAKEN!
                         this.hasFielderFielded = true;
-                        
-                        // Stop chaser running
-                        if (this.activeChaser) {
-                            this.activeChaser.anims.run.stop();
-                            this.activeChaser.anims.idle.start(true, 1.0);
-                        }
+
+                        // Stop chasers running
+                        this.activeChasers.forEach(chaser => {
+                            chaser.anims.run.stop();
+                            chaser.anims.idle.start(true, 1.0);
+                        });
+                        this.activeChasers = [];
 
                         player.anims.run.stop();
                         player.anims.idle.start(true, 1.0);
@@ -520,7 +656,7 @@ export default class EnvironmentPlayers {
 
     onBallReset(data) {
         const autoBowl = data?.autoBowl ?? false;
-        
+
         // Reset player positions and states
         this.resetPlayersToStart();
 
@@ -539,17 +675,93 @@ export default class EnvironmentPlayers {
         // Struck! Ball is now in play, start fielders chasing
         this.isBallInPlay = true;
         this.hasFielderFielded = false;
-        this.activeChaser = null;
+        this.activeChasers = [];
     }
 
     onDeliveryFinished() {
         // Ball play is over (registered a wicket, runs, or boundary)
         this.isBallInPlay = false;
-        
-        // Return active chaser back to idle animation
-        if (this.activeChaser) {
-            this.activeChaser.anims.run.stop();
-            this.activeChaser.anims.idle.start(true, 1.0);
+
+        // Return active chasers back to idle animation
+        this.activeChasers.forEach(chaser => {
+            chaser.anims.run.stop();
+            chaser.anims.idle.start(true, 1.0);
+        });
+        this.activeChasers = [];
+    }
+
+    getBowlerRightArmNode() {
+        if (!this.bowlerObj) return null;
+
+        if (!this.bowlerRightArmNode) {
+            let foundNode = null;
+            const findNode = (node) => {
+                if (foundNode) return;
+                const nameLower = node.name.toLowerCase();
+                if (nameLower.includes("rightarm") && !nameLower.includes("forearm")) {
+                    foundNode = node;
+                    return;
+                }
+                node.getChildren().forEach(findNode);
+            };
+            findNode(this.bowlerObj.root);
+            this.bowlerRightArmNode = foundNode;
         }
+        return this.bowlerRightArmNode;
+    }
+
+    getBowlerRightForeArmNode() {
+        if (!this.bowlerObj) return null;
+
+        if (!this.bowlerRightForeArmNode) {
+            let foundNode = null;
+            const findNode = (node) => {
+                if (foundNode) return;
+                const nameLower = node.name.toLowerCase();
+                if (nameLower.includes("rightforearm")) {
+                    foundNode = node;
+                    return;
+                }
+                node.getChildren().forEach(findNode);
+            };
+            findNode(this.bowlerObj.root);
+            this.bowlerRightForeArmNode = foundNode;
+        }
+        return this.bowlerRightForeArmNode;
+    }
+
+    getBowlerHandPosition() {
+        if (!this.bowlerObj) return null;
+
+        if (!this.bowlerHandNode) {
+            let foundNode = null;
+            const findNode = (node) => {
+                if (foundNode) return;
+                const nameLower = node.name.toLowerCase();
+                // Match the main RightHand bone specifically, excluding fingers
+                if (nameLower.includes("righthand") &&
+                    !nameLower.includes("index") &&
+                    !nameLower.includes("thumb") &&
+                    !nameLower.includes("ring") &&
+                    !nameLower.includes("middle") &&
+                    !nameLower.includes("pinky")) {
+                    foundNode = node;
+                    return;
+                }
+                node.getChildren().forEach(findNode);
+            };
+            findNode(this.bowlerObj.root);
+            this.bowlerHandNode = foundNode;
+        }
+
+        if (this.bowlerHandNode) {
+            this.bowlerHandNode.computeWorldMatrix(true);
+            // Offset from the wrist joint (RightHand node) to the center of the palm:
+            // -X points towards the palm, +Y points towards fingers, +Z is for fine-tuning
+            const localPalmOffset = new BABYLON.Vector3(-0.022, 0.05, 0.015);
+            return BABYLON.Vector3.TransformCoordinates(localPalmOffset, this.bowlerHandNode.getWorldMatrix());
+        }
+
+        return this.bowlerObj.root.position;
     }
 }

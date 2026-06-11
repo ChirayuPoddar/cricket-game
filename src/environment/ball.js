@@ -14,8 +14,8 @@ export default class EnvironmentBall {
         this.BALL_DIAMETER = 0.072;
         this.GRAVITY = -9.8;
 
-        this.position = new BABYLON.Vector3(0, 1.9, -22);
-        this.velocity = new BABYLON.Vector3(0, -0.8, 22);
+        this.position = new BABYLON.Vector3(0.6, 1.9, -12);
+        this.velocity = new BABYLON.Vector3(-0.77, -0.8, 22);
 
         this.swingForce = 0;
         this.isAnimating = true;
@@ -94,7 +94,7 @@ export default class EnvironmentBall {
             // Initialize timing values when the ball actually starts moving
             if (this.bowlingStartTime === null) {
                 this.bowlingStartTime = Date.now();
-                this.idealContactTime = this.bowlingStartTime + (29.4 / this.velocity.z) * 1000;
+                this.idealContactTime = this.bowlingStartTime + (19.4 / this.velocity.z) * 1000;
                 this.peakSwingSpeed = 0;
                 this.peakSwingTime = 0;
             }
@@ -485,8 +485,8 @@ export default class EnvironmentBall {
         const randomHeight = 1.8 + Math.random() * 0.2;
         const randomLineOffset = (Math.random() - 0.5) * 0.12;
 
-        this.position = new BABYLON.Vector3(randomLineOffset, randomHeight, -22);
-        this.velocity = new BABYLON.Vector3((Math.random() - 0.5) * 0.2, -0.6, randomPace);
+        this.position = new BABYLON.Vector3(0.6 + randomLineOffset, randomHeight, -12);
+        this.velocity = new BABYLON.Vector3(-0.77 + (Math.random() - 0.5) * 0.2, -0.6, randomPace);
         this.swingForce = (Math.random() - 0.5) * 1.8;
 
         if (this.ballMesh) {
@@ -569,4 +569,4 @@ export default class EnvironmentBall {
         };
         return emojiMap[shotType] || '🎯';
     }
-}
+} 

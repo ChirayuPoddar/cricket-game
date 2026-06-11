@@ -18,7 +18,7 @@ export default class EnvironmentStadium {
     createBoundaryRope() {
         const boundaryPoints = [];
         const totalSegments = 128; // More segments = smoother circle
-        const radius = 40; // Distance from center to boundary rope
+        const radius = 60; // Distance from center to boundary rope
 
         for (let i = 0; i <= totalSegments; i++) {
             const angle = (i / totalSegments) * Math.PI * 2;
@@ -73,8 +73,8 @@ export default class EnvironmentStadium {
                             }
                         });
 
-                        stadiumRoot.scaling = new BABYLON.Vector3(1.8, 1.8, 1.8);
-                        stadiumRoot.position = new BABYLON.Vector3(12, -0.1, 0);
+                        stadiumRoot.scaling = new BABYLON.Vector3(2.7, 2.7, 2.7);
+                        stadiumRoot.position = new BABYLON.Vector3(18.0, -0.1, 0);
 
                         if (onComplete) onComplete();
                     } catch (err) {
