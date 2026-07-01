@@ -84,6 +84,7 @@ export default class EnvironmentCamera {
 
     registerDynamicTrackingLoop() {
         this.scene.onBeforeRenderObservable.add(() => {
+            if (this.scene.activeCamera !== this.camera) return;
             if (!this.isTrackingBall || !this.targetBallMesh) return;
 
             const ballPos = this.targetBallMesh.position;
@@ -101,5 +102,44 @@ export default class EnvironmentCamera {
             // Keep focal lens locked onto the ball
             this.camera.setTarget(ballPos);
         });
+    }
+
+    enableFreeRoam(enable) {
+        if (enable) {
+            if (!this.freeRoamCamera) {
+                this.freeRoamCamera = new BABYLON.FreeCamera("freeRoamCamera", this.camera.position.clone(), this.scene);
+                
+                // Clear and re-add standard inputs for absolute reliability
+                this.freeRoamCamera.inputs.clear();
+                this.freeRoamCamera.inputs.addKeyboard();
+                this.freeRoamCamera.inputs.addMouse();
+
+                this.freeRoamCamera.keysUp = [38, 87];         // ArrowUp, W
+                this.freeRoamCamera.keysDown = [40, 83];       // ArrowDown, S
+                this.freeRoamCamera.keysLeft = [37, 65];       // ArrowLeft, A
+                this.freeRoamCamera.keysRight = [39, 68];      // ArrowRight, D
+                this.freeRoamCamera.keysUpward = [69];         // E (fly up)
+                this.freeRoamCamera.keysDownward = [81];       // Q (fly down)
+                
+                this.freeRoamCamera.speed = 2.0;               // Faster speed for large stadium
+                this.freeRoamCamera.angularSensibility = 1000; // Mouse sensitivity
+            }
+
+            // Sync free camera position and orientation with the main camera
+            this.freeRoamCamera.position.copyFrom(this.camera.position);
+            this.freeRoamCamera.setTarget(this.camera.getTarget().clone());
+
+            // Switch to free camera
+            this.camera.detachControl(this.canvas);
+            this.scene.activeCamera = this.freeRoamCamera;
+            this.freeRoamCamera.attachControl(this.canvas, true);
+        } else {
+            // Restore main camera
+            if (this.freeRoamCamera) {
+                this.freeRoamCamera.detachControl(this.canvas);
+            }
+            this.scene.activeCamera = this.camera;
+            this.camera.attachControl(this.canvas, true);
+        }
     }
 }

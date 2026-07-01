@@ -51,7 +51,7 @@ export default class ConfigManager {
         ballMass: 0.156
       },
       collision: {
-        hand: { distanceX: 0.35, distanceY: 0.35, distanceZ: 0.30 },
+        hand: { distanceX: 0.85, distanceY: 0.85, distanceZ: 1.50 },
         wicket: { distanceZ: 0.15, distanceX: 0.12 },
         boundary: { radius: 40.0 }
       },

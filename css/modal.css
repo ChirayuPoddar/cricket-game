@@ -1,0 +1,187 @@
+/* css/modal.css */
+
+/* Loading Screen Overlay Panel */
+#loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at center, #0a1428 0%, #050a19 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #ffffff;
+    transition: opacity 0.5s ease;
+}
+
+/* Circular Loading Spinner */
+#loadingSpinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top: 4px solid #00ff00;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 25px;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Loading Status Text */
+#loadingStatus {
+    font-size: 16px;
+    color: #8cd6ff;
+    margin: 0 0 15px 0;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* Loading Progress Bar Container */
+#progressContainer {
+    width: 300px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Loading Progress Filling Indicator */
+#progressBar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #00ff00, #00ffcc);
+    box-shadow: 0 0 10px #00ff00;
+    transition: width 0.1s ease;
+}
+
+/* Start/Play Game Trigger Button */
+#startGameBtn {
+    display: none;
+    background: #00ff00;
+    color: #000000;
+    border: none;
+    border-radius: 8px;
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 255, 0, 0.4);
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    outline: none;
+}
+
+/* Pause Modal Full-screen Backdrop */
+#pauseModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(5, 10, 25, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none; /* Flex when active */
+    justify-content: center;
+    align-items: center;
+    z-index: 15000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: all 0.3s ease;
+}
+
+/* Pause Modal Content Box */
+.modal-content {
+    background: radial-gradient(circle at center, #0a1c3a 0%, #050e20 100%);
+    border: 3px solid #00ff00;
+    border-radius: 16px;
+    padding: 35px 45px;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+    animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.85); opacity: 0; }
+    to { transform: scale(1.0); opacity: 1; }
+}
+
+/* Modal Title Header */
+.modal-title {
+    font-size: 28px;
+    font-weight: 900;
+    color: #ffffff;
+    margin-bottom: 25px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+}
+
+/* Settings Options Buttons */
+.modal-btn {
+    display: block;
+    width: 100%;
+    margin-bottom: 15px;
+    background: linear-gradient(135deg, #051641, #0a2a5a);
+    color: #ffffff;
+    border: 2px solid #00ff00;
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    outline: none;
+}
+
+.modal-btn:last-child {
+    margin-bottom: 0;
+}
+
+.modal-btn:hover {
+    transform: scale(1.03);
+    background: #00ff00 !important;
+    color: #000000 !important;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.6) !important;
+}
+
+/* Loading Title Styles */
+.loading-title {
+    font-size: 38px;
+    font-weight: 900;
+    margin: 0 0 8px 0;
+    letter-spacing: 2px;
+    text-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+/* Pause Countdown Elements */
+#pauseCountdownContent {
+    display: none;
+}
+
+.countdown-label {
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+
+.countdown-number {
+    font-size: 80px;
+    font-weight: 900;
+    color: #00ff00;
+    text-shadow: 0 0 30px rgba(0, 255, 0, 0.6);
+    margin-top: 10px;
+}
+

@@ -1,0 +1,39 @@
+/* css/radar.css */
+
+/* Live Field Radar Overlay Container */
+#fieldRadar {
+    position: fixed;
+    bottom: 215px; /* Positioned directly above the webcam overlay */
+    right: 20px;
+    width: 240px;
+    height: 275px;
+    background: rgba(10, 20, 40, 0.85);
+    border: 2px solid #00ff00;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
+    z-index: 9999;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Radar Header Banner */
+.radar-header {
+    background: rgba(0, 255, 0, 0.15);
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.25);
+    font-size: 11px;
+    font-weight: 800;
+    color: #00ff00;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-align: center;
+    user-select: none;
+}
+
+/* Radar Drawing Canvas Zone */
+#radarCanvas {
+    background: transparent;
+    display: block;
+}

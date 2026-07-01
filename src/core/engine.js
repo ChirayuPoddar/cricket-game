@@ -19,11 +19,21 @@ export class GameEngine {
         const originalLog = console.log;
         console.log = () => {};
 
-        // Initialize Babylon engine with high performance settings and discrete GPU request
-        this.engine = new BABYLON.Engine(this.canvas, true, { 
-            antialias: true,
-            powerPreference: "high-performance"
-        });
+        try {
+            // Initialize Babylon engine with high performance settings and discrete GPU request
+            this.engine = new BABYLON.Engine(this.canvas, true, { 
+                antialias: true,
+                powerPreference: "high-performance"
+            });
+        } catch (e) {
+            console.warn("Failed to initialize Babylon Engine with high-performance options, retrying with defaults...", e);
+            try {
+                this.engine = new BABYLON.Engine(this.canvas, true);
+            } catch (err2) {
+                console.log = originalLog;
+                throw err2;
+            }
+        }
 
         // Restore console.log immediately
         console.log = originalLog;

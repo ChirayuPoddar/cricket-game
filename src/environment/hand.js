@@ -26,7 +26,7 @@ export default class EnvironmentHand {
         // SWING SPEED THRESHOLDS (world units/sec)
         // Calibrate from console: gentle push ≈ 0.8, hard swing ≈ 4.0+
         this.SWING_SLOW_MAX = 0.6;   // below this → 1/2/3 runs territory
-        this.SWING_FAST_MIN = 2.8;   // above this → boundary territory (calibrated to a challenging sweet spot)
+        this.SWING_FAST_MIN = 1.8;   // above this → boundary territory (made easier for hitting)
 
         // Snappy, highly responsive tracking factor
         this.lerpFactor = 0.45;
@@ -105,8 +105,12 @@ export default class EnvironmentHand {
     }
 
     connectToTracker() {
-        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsURL = `${protocol}://localhost:8765`;
+        // Even when the frontend is served via HTTPS (like GitHub Pages), we must connect to the local tracking server using 'ws' (insecure).
+        // Since the local Python tracking server does not have an SSL certificate, a 'wss' connection will fail with SSL handshake errors.
+        // Modern web browsers permit ws://localhost and ws://127.0.0.1 connections from secure HTTPS origins.
+        // We alternate between 127.0.0.1 and localhost to handle IPv4/IPv6 loopback resolutions (e.g., if localhost resolves to IPv6 ::1, which the Python server bound to 0.0.0.0 might not listen on).
+        const host = this.reconnectAttempts % 2 === 0 ? "127.0.0.1" : "localhost";
+        const wsURL = `ws://${host}:8765`;
         
         try {
             this.socket = new WebSocket(wsURL);

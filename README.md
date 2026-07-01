@@ -446,15 +446,85 @@ ConfigManager.getDifficulty('hard')            // { gravityScale, speedScale }
 
 ---
 
-## 🤝 Contributing
+## 🌐 GitHub Pages Deployment
 
-Found a bug? Want to improve the game? Contributions welcome!
+Since the game frontend is a static web application built using HTML5, CSS, and vanilla ES modules (BabylonJS), it can be hosted directly on **GitHub Pages** for free.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your improvements
-4. Test thoroughly
-5. Submit a pull request
+### How to Enable GitHub Pages:
+1. Push your local repository to a remote repository on GitHub (e.g., `https://github.com/your-username/cricket-game`).
+2. Navigate to your repository on the GitHub website.
+3. Click on the **Settings** tab.
+4. Under the sidebar menu on the left, find and click on **Pages** (under the "Code and automation" section).
+5. In the **Build and deployment** settings:
+   - **Source**: Select `Deploy from a branch`.
+   - **Branch**: Choose `main` (or whichever branch you want to deploy) and the `/ (root)` directory.
+   - Click **Save**.
+6. GitHub will trigger a workflow to build and deploy your site. Once completed, your game will be live at:
+   `https://<your-username>.github.io/cricket-game/`
+
+### How Webcam Motion Tracking Works on GitHub Pages:
+- When accessed via GitHub Pages (which uses secure **HTTPS**), browsers enforce security policies preventing secure pages from connecting to insecure APIs.
+- However, modern web browsers make a special exception to mixed-content blocking for loopback addresses (**localhost** and **127.0.0.1**).
+- The game's frontend is calibrated to connect to your local computer's YOLO tracking server using `ws://127.0.0.1:8765` or `ws://localhost:8765` directly (bypassing secure `wss://` which fails due to self-signed or missing SSL certificates on localhost).
+- **Steps to play with hand tracking on GitHub Pages**:
+  1. Clone/download the repository locally.
+  2. Install Python dependencies and run the tracking backend:
+     ```bash
+     pip install -r requirements.txt
+     python tracker.py
+     ```
+  3. Open the game in your browser from your GitHub Pages URL (e.g. `https://<your-username>.github.io/cricket-game/`).
+  4. The game will automatically establish connection to the locally running YOLO server on your machine!
+
+---
+
+## 🤝 Contributing & Developer Guide
+
+We welcome contributions from other developers to make this cricket game even better! Here is the setup guide to help you get started:
+
+### Developer Setup
+
+1. **Fork the Repository**: Click "Fork" at the top right of the GitHub repository page to create your own copy.
+2. **Clone Your Fork**:
+   ```bash
+   git clone https://github.com/<your-username>/cricket-game.git
+   cd cricket-game
+   ```
+3. **Set Up a Virtual Environment** (Highly Recommended for Python backend):
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+4. **Run a Local Web Server without Caching**:
+   We provide a custom local development server in `server.py` that disables caching to ensure changes to scripts and CSS are immediately visible in the browser:
+   ```bash
+   python server.py
+   ```
+   Alternatively, you can use the quick start scripts:
+   - On macOS/Linux: `./start.sh`
+   - On Windows: `start.bat`
+
+### Contribution Workflow
+
+1. **Create a Feature Branch**:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+2. **Make and Test Changes**:
+   - Write clean, modular, and well-commented code.
+   - For 3D models and rendering, we use **BabylonJS** (configured via `./src/core/` and `./src/environment/`).
+   - For UI elements, we use HTML and CSS (configured via `./css/style.css` and `./src/ui/`).
+   - Ensure you do not check in large binary model files like `yolov8n-pose.pt` (they are ignored in `.gitignore`).
+3. **Commit Your Changes**:
+   ```bash
+   git commit -m "Add some amazing feature"
+   ```
+4. **Push to Your Fork**:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. **Open a Pull Request (PR)**: Go to the original repository on GitHub and create a pull request from your branch. Please describe the changes you made and provide instructions on how to test them.
 
 ---
 

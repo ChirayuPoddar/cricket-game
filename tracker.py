@@ -1,4 +1,8 @@
-# tracker.py
+import torch
+# Monkeypatch torch.load to set weights_only=False by default (needed for PyTorch 2.6+ compatibility with YOLOv8)
+_original_load = torch.load
+torch.load = lambda *args, **kwargs: _original_load(*args, **{**kwargs, 'weights_only': False})
+
 import cv2
 import asyncio
 import websockets
